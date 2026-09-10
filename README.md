@@ -226,35 +226,71 @@ Running `inverse_kinematics.m` draws the whole assembly: base circle and the thr
 
 # 2. Mechanical design
 
+The robot is modeled in Fusion 360.
+
+<p align="center">
+  <img src="docs/animation.gif" width="640">
+  <br>
+  <em>The assembly moving in Fusion 360</em>
+</p>
+
+All the printed parts are in the `3d files` folder:
+
+| File | Part | Qty |
+|---|---|---|
+| `raspberry_bottom.stl` | lower half of the Raspberry Pi case, the foot of the robot | 1 |
+| `raspberry_top.stl` | upper half of the case, modified to carry the motor base | 1 |
+| `camera_cover.stl` | cover that holds the camera pointing up at the plate | 1 |
+| `motor_base.stl` | frame that holds the three servos 120° apart | 1 |
+| `link_lower_half.stl` | half of the lower link, from the motor to the elbow | 6 |
+| `link_lower_connector.stl` | connector of the two halves of the lower link | 3 |
+| `link_upper.stl` | upper link, from the elbow to the plate | 3 |
+| `plate.stl` | ring that holds the transparent plate | 1 |
+
+The pins of the joints are not printed: in the real robot they are three screws.
+
 > **On the ball joints.** They are *modeled* as ball joints but the physical model realize them as a screw through a clearance hole. That is nominally a pin joint; the extra rotational freedom comes from the clearance, so it is a compliant stand-in for a spherical pair rather than a true ball joint.
 
 <p align="center">
-  <img src="docs/ball_joint_detail.jpg" width="640">
+  <img src="docs/ball_joint_detail.jpg" width="480">
   <br>
-  <em>Physical realizations of the joint connecting link 2 with the plate</em>
+  <em>Physical realizations of the joint connecting the upper link with the plate</em>
 </p>
 
-The phisical dimension
+The physical dimensions of the mechanism, $R_b$, $R_p$, $L_1$ and $L_2$, are the ones already reported in §1.2: they are measured on the Fusion 360 model, and they are the values used thoughout the project.
 
-```matlab
-R_b = 28.65;       % base radius        [mm]
-R_p = 84.00;       % plate radius       [mm]
-L1  = 80.00;       % link Bi -> Pi     [mm]
-L2  = 80.00;       % link Pi -> Mi     [mm]
-```
+In the first version of the robot the length of the links were about half of the current ones. The plate was then so close to the camera that the ball covered almost the entire field of view, and its position was detected poorly. The links have therefore been made longer, until the stand-off between the camera and the plate was enough for a reliable detection, but not so long to increase excessively the moment arm, and with it the torque the servos need to tilt the plate.
 
 # 3. Electronics
 
-# 3. Ball detection
+The electronics are kept as simple as possible: a Raspberry Pi 4 Model B, three SG90 servo motors and male-female jumper cables.
 
-# 4. PID Control
+Each servo has three wires: signal, 5V and ground. The signal wires go to three GPIO pins of the Raspberry Pi:
 
-# 5. LQR Control
+| Motor | GPIO (BCM) | Header pin |
+|---|---|---|
+| 1 | 13 | 33 |
+| 2 | 18 | 12 |
+| 3 | 12 | 32 |
 
-# 6. Reinforcement Learning Control
+The numbers are the BCM numbering used by `pigpio`, not the position of the pin on the header. This is also the order declared in `ball_balancer.py` (`SERVO_PINS = [13, 18, 12]`), so keeping it makes the code work as it is.
 
-# 7. Credits
+The three grounds go to three distinct GND pins. The 5V pins of the Raspberry Pi are only two, so one servo takes one of them, while the other two share the second one through a jumper cable with one female and two male ends.
 
-This project is a reproduction of the ball balancing robot built by [Koshiro Robot Creator](https://www.youtube.com/watch?v=KnYSuQEBGHc). I decided to build my own version mainly to experiment and to learn, but also because I did not have the motors used in the original one: every part has therefore been modeled from scratch, taking inspiration from his design.
+> **On the power supply.** This is not the ideal way to feed three servos: a proper build would power them from a dedicated power supply module, leaving the 5V rail of the Raspberry Pi to the Raspberry Pi alone. Compactness was one of the goals of this project, so the current version accepts the compromise.
 
-The case that hosts the Raspberry Pi is the [Raspberry Pi 4 case](https://www.printables.com/model/566196-raspberry-pi-4-case) designed by Ryzor_Drone, modified so that it also works as the base of the robot. That model is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/), so `raspberry_bottom.stl` and `raspberry_top.stl` are shared under the same license: attribution required, non commercial use only, and any further modification must keep this same license. The rest of the parts are modeled from scratch and are not covered by it.
+# 4. Ball detection
+
+# 5. PID Control
+
+# 6. LQR Control
+
+# 7. Reinforcement Learning Control
+
+# 8. Future developments
+
+# 9. Credits
+
+This project is a reproduction of the ball balancing robot built by [Koshiro Robot Creator](https://www.youtube.com/watch?v=KnYSuQEBGHc). I decided to build my own version mainly to experiment and to learn, but also because I did not have the motors used in the original one: every part has therefore been modeled from scratch, taking inspiration from his design. The only exception is `camera_cover.stl`, which is a modified version of the one published in his [GitHub repository](https://github.com/KoshiroRobot/Ball-Balancing-Robot).
+
+The case that hosts the Raspberry Pi is the [Raspberry Pi 4 case](https://www.printables.com/model/566196-raspberry-pi-4-case) designed by Ryzor_Drone, modified so that it also works as the base of the robot. That model is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/), so `raspberry_bottom.stl` and `raspberry_top.stl` are shared under the same license: attribution required, non commercial use only, and any further modification must keep this same license. The other parts, `camera_cover.stl` apart, are modeled from scratch and are not covered by it.

@@ -140,6 +140,35 @@ plot3([P3(1), M3(1)], [P3(2), M3(2)], [P3(3), M3(3)], 'b');
 
 axis equal;
 
+% LABELS
+% d = 0.06 * R_p;                          % offset
+% lab = {'Interpreter', 'latex', 'FontSize', 12};
+% 
+% text(M1(1)-d, M1(2), M1(3)-d, '$M_1$', lab{:});
+% text(M2(1), M2(2)-d, M2(3)-d, '$M_2$', lab{:});
+% text(M3(1), M3(2)+d, M3(3)-d, '$M_3$', lab{:});
+% 
+% text(P1(1)-d, P1(2), P1(3), '$P_1$', lab{:});
+% text(P2(1), P2(2)-d, P2(3), '$P_2$', lab{:});
+% text(P3(1), P3(2)+d, P3(3), '$P_3$', lab{:});
+% 
+% text(B1(1)-d, B1(2), B1(3)+d, '$B_1$', lab{:});
+% text(B2(1), B2(2)-d, B2(3)+d, '$B_2$', lab{:});
+% text(B3(1), B3(2)+d, B3(3)+d, '$B_3$', lab{:});
+% 
+% text(0, d, h, '$c$', lab{:});
+% text(10*n(1), 10*n(2), h + 10*n(3) + d, '$\vec{n}$', lab{:});
+% 
+% link lengths
+% text((P1(1)+B1(1))/2 - 2*d, 0, (P1(3)+B1(3))/2, '$L_1$', lab{:});
+% text((P1(1)+M1(1))/2 - 2*d, 0, (P1(3)+M1(3))/2, '$L_2$', lab{:});
+% 
+% radii and height
+% text(-R_b/2, 0, -d, '$R_b$', lab{:});
+% text(-R_p/2, 0, h + d, '$R_p$', lab{:});
+% text(d/2, 0, h/2, '$h$', lab{:});
+% plot3([0, 0], [0, 0], [0, h], 'k:'); 
+
 % ANGLES
 q1 = atan(sqrt((P1(2)-M1(2))^2 + (P1(1)-M1(1))^2)/abs(P1(3)-M1(3)))
 q2 = atan(sqrt((P2(2)-M2(2))^2 + (P2(1)-M2(1))^2)/abs(P2(3)-M2(3)))
