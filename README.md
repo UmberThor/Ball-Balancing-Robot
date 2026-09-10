@@ -60,7 +60,7 @@ The physical constants are:
 
 Each arm ($\mathbf{M}_i$, $\mathbf{P}_i$ and $\mathbf{B}_i$) is confined to a fixed vertical plane. In coordinates, that plane is simply
 
-$$y = E_i\, x .$$
+$$y = E_i\  x .$$
 
 where $E_i = \frac{M_{iy}}{M_{ix}}$. Under this consideration, the entire 3D problem collapses into three independent 2D problems, one per plane.
 
@@ -101,41 +101,41 @@ $$
 
 Substituting (2) into (1) gives the height along the plane as a function of $x$:
 
-$$z = h - \frac{\alpha + \beta E_i}{\gamma}\,x$$
+$$z = h - \frac{\alpha + \beta E_i}{\gamma}\ x$$
 
 and substituting both into (3) leaves a pure quadratic in $x$:
 
-$$x^2\left[\,1 + E_i^2 + \frac{(\alpha + \beta E_i)^2}{\gamma^2}\right] = R_p^2 .$$
+$$x^2\left[1 + E_i^2 + \frac{(\alpha + \beta E_i)^2}{\gamma^2}\right] = R_p^2 .$$
 
 Hence the closed form for any arm:
 
-$$\boxed{\;
-x_i = s_i\,\frac{\gamma R_p}{\sqrt{\gamma^2\left(1 + E_i^2\right) + (\alpha + \beta E_i)^2}},
-\qquad y_i = E_i\,x_i,
-\qquad z_i = h - \frac{\alpha + \beta E_i}{\gamma}\,x_i \;}$$
+$$
+x_i = s_i\ \frac{\gamma R_p}{\sqrt{\gamma^2\left(1 + E_i^2\right) + (\alpha + \beta E_i)^2}},
+\qquad y_i = E_i\ x_i,
+\qquad z_i = h - \frac{\alpha + \beta E_i}{\gamma}\ x_i$$
 
-where $s_i \in \{-1, +1\}$ picks the one of the two rim points that is on the motor's side; the other root is the diametrically opposite point of the rim.
+where $s_i \in \lbrace -1, +1 \rbrace$ picks the one of the two rim points that is on the motor's side; the other root is the diametrically opposite point of the rim.
 
 Expanding the box for the three arms gives:
 
 **Arm 1**: $E_1 = 0$, $s_1 = -1$:
 
-$$\mathbf{B}_1 = \left(-\frac{\gamma R_p}{\sqrt{\alpha^2 + \gamma^2}},\;\; 0,\;\;
+$$\mathbf{B}_1 = \left(-\frac{\gamma R_p}{\sqrt{\alpha^2 + \gamma^2}},\quad 0,\quad
 h + \frac{\alpha R_p}{\sqrt{\alpha^2 + \gamma^2}}\right)$$
 
 **Arm 2**: $E_2 = -\sqrt3$, $s_2 = +1$:
 
 $$\mathbf{B}_2 = \left(
-\frac{\gamma R_p}{\sqrt{4\gamma^2 + \left(\sqrt3\beta - \alpha\right)^2}},\;\;
--\frac{\sqrt3\,\gamma R_p}{\sqrt{4\gamma^2 + \left(\sqrt3\beta - \alpha\right)^2}},\;\;
+\frac{\gamma R_p}{\sqrt{4\gamma^2 + \left(\sqrt3\beta - \alpha\right)^2}},\quad
+-\frac{\sqrt3\ \gamma R_p}{\sqrt{4\gamma^2 + \left(\sqrt3\beta - \alpha\right)^2}},\quad
 h + \frac{R_p\left(\sqrt3\beta - \alpha\right)}{\sqrt{4\gamma^2 + \left(\sqrt3\beta - \alpha\right)^2}}
 \right)$$
 
 **Arm 3**: $E_3 = +\sqrt3$, $s_3 = +1$:
 
 $$\mathbf{B}_3 = \left(
-\frac{\gamma R_p}{\sqrt{4\gamma^2 + \left(\sqrt3\beta + \alpha\right)^2}},\;\;
-+\frac{\sqrt3\,\gamma R_p}{\sqrt{4\gamma^2 + \left(\sqrt3\beta + \alpha\right)^2}},\;\;
+\frac{\gamma R_p}{\sqrt{4\gamma^2 + \left(\sqrt3\beta + \alpha\right)^2}},\quad
++\frac{\sqrt3\ \gamma R_p}{\sqrt{4\gamma^2 + \left(\sqrt3\beta + \alpha\right)^2}},\quad
 h - \frac{R_p\left(\sqrt3\beta + \alpha\right)}{\sqrt{4\gamma^2 + \left(\sqrt3\beta + \alpha\right)^2}}
 \right)$$
 
@@ -155,6 +155,7 @@ $\mathbf{P}_i$ is again the intersection of three conditions:
 3. it lies in the arm plane
 
 This leads to writing the system:
+
 $$
 \begin{cases}
 (x - B_{ix})^2 + (y - B_{iy})^2 + (z - B_{iz})^2 = L_1^2 \\
@@ -168,22 +169,27 @@ Subtracting sphere (2) from sphere (1) kills every quadratic term and leaves a p
 $$z = A_i + B_ix + C_iy$$
 
 with
-$$A_i = \frac{L_1^2 - L_2^2 + \left(M_{ix}^2 - B_{ix}^2\right) + \left(M_{iy}^2 - B_{iy}^2\right) + \left(M_{iz}^2 - B_{iz}^2\right)}{2\,(M_{iz} - B_{iz})} $$
-$$B_i = \frac{B_{ix} - M_{ix}}{M_{iz} - B_{iz}} $$
-$$C_i = \frac{B_{iy} - M_{iy}}{M_{iz} - B_{iz}}$$
+
+$$
+\begin{gathered}
+A_i = \frac{L_1^2 - L_2^2 + \left(M_{ix}^2 - B_{ix}^2\right) + \left(M_{iy}^2 - B_{iy}^2\right) + \left(M_{iz}^2 - B_{iz}^2\right)}{2 (M_{iz} - B_{iz})} \\
+B_i = \frac{B_{ix} - M_{ix}}{M_{iz} - B_{iz}} \\
+C_i = \frac{B_{iy} - M_{iy}}{M_{iz} - B_{iz}}
+\end{gathered}
+$$
 
 Geometrically this is the *radical plane* of the two spheres: the plane that contains their intersection circle.
 
 
 Intersecting it with $y = E_i x$ collapses the circle to the two points of a line:
 
-$$y = E_i x, \qquad z = A_i + (B_i + C_i E_i)\,x$$
+$$y = E_i x, \qquad z = A_i + (B_i + C_i E_i)\ x$$
 
 Putting the line back into condition (1) gives
 
-$$\underbrace{\left[1 + E_i^2 + (B_i + C_iE_i)^2\right]}_{a_i}x^2
-+ \underbrace{\left[-2B_{ix} - 2E_iB_{iy} + 2(B_i + C_iE_i)(A_i - B_{iz})\right]}_{b_i}x
-+ \underbrace{\left[B_{ix}^2 + B_{iy}^2 + (A_i - B_{iz})^2 - L_1^2\right]}_{c_i} = 0$$
+$$\underbrace{\left[1 + E_i^2 + (B_i + C_iE_i)^2\right]}_{a_i}x^2 +
+\underbrace{\left[-2B_{ix} - 2E_iB_{iy} + 2(B_i + C_iE_i)(A_i - B_{iz})\right]}_{b_i}x +
+\underbrace{\left[B_{ix}^2 + B_{iy}^2 + (A_i - B_{iz})^2 - L_1^2\right]}_{c_i} = 0$$
 
 $$x_{1,2} = \frac{-b_i \pm \sqrt{b_i^2 - 4a_ic_i}}{2a_i}$$
 
@@ -191,13 +197,13 @@ The two roots are the two physical assemblies of the arm: elbow folded outward a
 
 Once $x$ is found, the coordinates of the $i$-th pin joint are:
 
-$$ \mathbf{P}_i = \Big(x,\;\; E_i x,\;\; A_i + (B_i + C_iE_i)\,x\Big)$$
+$$ \mathbf{P}_i = \Big(x,\quad E_i x,\quad A_i + (B_i + C_iE_i)\ x\Big)$$
 
 ## 1.6 Step 3 — motor angles $q_i$
 
 The motor angle is the tilt of link 2 ($\mathbf{M}_i \to \mathbf{P}_i$) measured from the vertical.
 
-$$q_i = \arctan\!\left(\frac{\sqrt{(P_{ix} - M_{ix})^2 + (P_{iy} - M_{iy})^2}}{\lvert P_{iz} - M_{iz}\rvert}\right)$$
+$$q_i = \arctan\left(\frac{\sqrt{(P_{ix} - M_{ix})^2 + (P_{iy} - M_{iy})^2}}{\lvert P_{iz} - M_{iz}\rvert}\right)$$
 
 
 ## 1.7 Worked example
@@ -242,3 +248,13 @@ L2  = 80.00;       % link Pi -> Mi     [mm]
 # 3. Ball detection
 
 # 4. PID Control
+
+# 5. LQR Control
+
+# 6. Reinforcement Learning Control
+
+# 7. Credits
+
+This project is a reproduction of the ball balancing robot built by [Koshiro Robot Creator](https://www.youtube.com/watch?v=KnYSuQEBGHc). I decided to build my own version mainly to experiment and to learn, but also because I did not have the motors used in the original one: every part has therefore been modeled from scratch, taking inspiration from his design.
+
+The case that hosts the Raspberry Pi is the [Raspberry Pi 4 case](https://www.printables.com/model/566196-raspberry-pi-4-case) designed by Ryzor_Drone, modified so that it also works as the base of the robot. That model is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/), so `raspberry_bottom.stl` and `raspberry_top.stl` are shared under the same license: attribution required, non commercial use only, and any further modification must keep this same license. The rest of the parts are modeled from scratch and are not covered by it.
