@@ -34,9 +34,13 @@ def set_angle(angles):
         pi.set_servo_pulsewidth(SERVO_PINS[i], angle_to_pulse(angles[i]))
 
 # CONTROL CONSTANTS
-KP = 0.00015
-KI = 0.00025
-KD = 0.00008
+KP = 12
+KI = 25
+KD = 7
+print(f'KP:{KP}\tKI:{KI}\t KD:{KD}')
+KP = KP*0.00001
+KI = KI*0.00001
+KD = KD*0.00001
 
 # DETECTION CONSTANTS
 R_BALL_PX = 200.0                        # ball radius in pixels -> TO BE UPDATED!!
@@ -131,6 +135,7 @@ try:
             cv2.circle(frame, (int(cx), int(cy)), 5, (0, 255, 0), 3)
 
             if not had_ball:    # reacquisition, in case the ball is repositioned for example after falling
+                err_int = 0
                 err_prev = np.array([center[0]-cx, center[1]-cy], dtype=float)
                 t_prev = time.monotonic()
             had_ball = True

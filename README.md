@@ -195,6 +195,13 @@ $$x_{1,2} = \frac{-b_i \pm \sqrt{b_i^2 - 4a_ic_i}}{2a_i}$$
 
 The two roots are the two physical assemblies of the arm: elbow folded outward and elbow folded inward. The robot is built with the elbow out, so the root to keep is the one that maximizes $|x|$: that is the $+$ root when $s_i = +1$ and the $-$ root when $s_i = -1$.
 
+<p align="center">
+  <img src="docs/elbow_out.png" alt="Elbow out configuration" width="48%">
+  <img src="docs/elbow_in.png" alt="Elbow in configuration" width="48%">
+  <br>
+  <em>The two roots of the quadratic, for the same pose of the plate: on the left the elbow out configuration, the one the robot is built with, on the right the elbow in one, which is discarded.</em>
+</p>
+
 Once $x$ is found, the coordinates of the $i$-th pin joint are:
 
 $$ \mathbf{P}_i = \Big(x,\quad E_i x,\quad A_i + (B_i + C_iE_i)\ x\Big)$$
@@ -249,21 +256,21 @@ All the printed parts are in the `3d files` folder:
 
 The pins of the joints are not printed: in the real robot they are three screws.
 
-> **On the ball joints.** They are *modeled* as ball joints but the physical model realize them as a screw through a clearance hole. That is nominally a pin joint; the extra rotational freedom comes from the clearance, so it is a compliant stand-in for a spherical pair rather than a true ball joint.
+> **On the ball joints.** They are *modeled* as ball joints but the physical model realizes them as a screw through a clearance hole. That is nominally a pin joint; the extra rotational freedom comes from the clearance, so it is a compliant stand-in for a spherical pair rather than a true ball joint.
 
 <p align="center">
   <img src="docs/ball_joint_detail.jpg" width="480">
   <br>
-  <em>Physical realizations of the joint connecting the upper link with the plate</em>
+  <em>The joint connecting the upper link with the plate</em>
 </p>
 
-The physical dimensions of the mechanism, $R_b$, $R_p$, $L_1$ and $L_2$, are the ones already reported in §1.2: they are measured on the Fusion 360 model, and they are the values used thoughout the project.
+The physical dimensions of the mechanism, $R_b$, $R_p$, $L_1$ and $L_2$, are the ones already reported in §1.2: they are measured on the Fusion 360 model, and they are the values used throughout the project.
 
-In the first version of the robot the length of the links were about half of the current ones. The plate was then so close to the camera that the ball covered almost the entire field of view, and its position was detected poorly. The links have therefore been made longer, until the stand-off between the camera and the plate was enough for a reliable detection, but not so long to increase excessively the moment arm, and with it the torque the servos need to tilt the plate.
+In the first version of the robot the links were about half as long as the current ones. The plate was then so close to the camera that the ball covered almost the entire field of view, and its position was detected poorly. The links have therefore been made longer, until the stand-off between the camera and the plate was enough for a reliable detection, but not so long to increase excessively the moment arm, and with it the torque the servos need to tilt the plate.
 
 # 3. Electronics
 
-The electronics are kept as simple as possible: a Raspberry Pi 4 Model B, three SG90 servo motors and male-female jumper cables.
+The electronics are kept as simple as possible: a Raspberry Pi 4 Model B, three SG90 servo motors, a CSI camera module and male-female jumper cables.
 
 Each servo has three wires: signal, 5V and ground. The signal wires go to three GPIO pins of the Raspberry Pi:
 
@@ -277,19 +284,29 @@ The numbers are the BCM numbering used by `pigpio`, not the position of the pin 
 
 The three grounds go to three distinct GND pins. The 5V pins of the Raspberry Pi are only two, so one servo takes one of them, while the other two share the second one through a jumper cable with one female and two male ends.
 
-> **On the power supply.** This is not the ideal way to feed three servos: a proper build would power them from a dedicated power supply module, leaving the 5V rail of the Raspberry Pi to the Raspberry Pi alone. Compactness was one of the goals of this project, so the current version accepts the compromise.
+<p align="center">
+  <img src="docs/circuit.png" alt="The three servos wired to the GPIO header of the Raspberry Pi" width="400">
+  <br>
+  <em>Wiring of the three servos to the pins of the Raspberry Pi header</em>
+</p>
 
-# 4. Ball detection
+> **On the power supply.** The Raspberry Pi is powered by its own USB-C cable, which outputs 5.1 V at 3 A, and the three servos draw from that same rail. This is not the ideal way to feed three servos: a proper build would power them from a dedicated power supply module, leaving the 5V rail of the Raspberry Pi to the Raspberry Pi alone. Compactness was one of the goals of this project, so the current version accepts the compromise.
 
-# 5. PID Control
+The camera is a 5 megapixel CSI module with IR filter, and it is the only component that does not use the GPIO header: it plugs into the CSI port of the Raspberry Pi. The ribbon supplied with it is the narrow type, while the CSI connector of the Raspberry Pi 4 takes the wide one, so it is replaced by a 30 cm wide flex cable.
 
-# 6. LQR Control
+# 4. 3d print and assembly
 
-# 7. Reinforcement Learning Control
+# 5. Ball detection
 
-# 8. Future developments
+# 6. PID Control
 
-# 9. Credits
+# 7. LQR Control
+
+# 8. Reinforcement Learning Control
+
+# 9. Future developments
+
+# 10. Credits
 
 This project is a reproduction of the ball balancing robot built by [Koshiro Robot Creator](https://www.youtube.com/watch?v=KnYSuQEBGHc). I decided to build my own version mainly to experiment and to learn, but also because I did not have the motors used in the original one: every part has therefore been modeled from scratch, taking inspiration from his design. The only exception is `camera_cover.stl`, which is a modified version of the one published in his [GitHub repository](https://github.com/KoshiroRobot/Ball-Balancing-Robot).
 
