@@ -2,11 +2,17 @@ clear;
 close all;
 clc;
 
+% HEIGHT AND NORMAL VECTOR
+h = 120;
+n = [0, 0, 1];
+%n = [-0.25, 0.33, 1];
+n = n/norm(n);
+
 % CONSTANTS
-R_b = 58.19;
+R_b = 28.65;
 R_p = 84.00;
-L1 = 80;
-L2 = 80;
+L1 = 80.00;
+L2 = 80.00;
 
 % COORDINATE OF POINTS ON BASE
 base_c = [0, 0, 0];
@@ -15,12 +21,6 @@ M1 = [R_b * cos(pi); R_b * sin(pi); 0];
 M2 = [R_b * cos(5*pi/3); R_b * sin(5*pi/3); 0];
 M3 = [R_b * cos(pi/3); R_b * sin(pi/3); 0];
 
-
-% HEIGHT AND NORMAL VECTOR
-h = 100;
-n = [0, 0, 1];
-%n = [-0.25, 0.33, 1];
-n = n/norm(n);
 
 % BALL JOINT COORDINATES
 B1 = [
@@ -64,25 +64,25 @@ plotCircle3D(base_c, [0, 0, 1], R_b, 'k-'); hold on;
 % Planes
 
 % B1 plane
-% [x z] = meshgrid(-2:2:0, -1:5:4);
+% [x z] = meshgrid(-120:120:0, -0:120:120);
 % y = z * 0;
 % s = surf(x,y,z); hold on;
 % s.FaceColor = 'r';
 % s.FaceAlpha = 0.25;
 
 % B2 plane
-% [x z] = meshgrid(0:2:2, -1:5:4);
-% y = -sqrt(3) * x;
-% s = surf(x,y,z); hold on;
-% s.FaceColor = 'g';
-% s.FaceAlpha = 0.25;
+ % [x z] = meshgrid(0:50:50, 0:140:140);
+ % y = -sqrt(3) * x;
+ % s = surf(x,y,z); hold on;
+ % s.FaceColor = 'g';
+ % s.FaceAlpha = 0.25;
 
 % B3 plane
-% [x z] = meshgrid(0:2:2, -1:5:4);
-% y = sqrt(3) * x;
-% s = surf(x,y,z); hold on;
-% s.FaceColor = 'b';
-% s.FaceAlpha = 0.25;
+ % [x z] = meshgrid(0:60:60, 0:120:120);
+ % y = sqrt(3) * x;
+ % s = surf(x,y,z); hold on;
+ % s.FaceColor = 'b';
+ % s.FaceAlpha = 0.25;
 
 % Plane plane
 % [x y] = meshgrid(-2:4:2, -2:4:2);

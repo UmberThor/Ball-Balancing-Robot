@@ -1,2 +1,12 @@
 # macOS
 .DS_Store
+
+# MATLAB autosave
+*.asv
+
+# 3D files
+*.3mf
+
+# notes superseded by the README
+inverse kinematics notes.pdf
+inverse_kinematics.md

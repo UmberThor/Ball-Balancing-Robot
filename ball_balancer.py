@@ -16,7 +16,9 @@ gui_on = args.gui
 # ACTUATION SETUP
 SERVO_PINS = [13, 18, 12]
 OFFSETS = [0, -5, -5]
-Q_MIN, Q_MAX = 35, 75
+Q_HOME = 60                              # motor angle at the nominal pose (h = H_NOM, plate horizontal)
+Q_RANGE = 15                             # travel allowed around the nominal pose
+Q_MIN, Q_MAX = Q_HOME - Q_RANGE, Q_HOME + Q_RANGE
 
 # CONNECT PIGPIO (that uses DMA software pwm instead of Python software pwm)
 pi = pigpio.pi()
@@ -42,10 +44,11 @@ AREA_MIN = 0.10 * np.pi * R_BALL_PX**2   # a blob smaller then this cannot be th
 FILL_MIN = 0.45                          # the contour detected as the ball should fill at least 45% of its minimum enclosing circle
 
 # INVERSE KINEMATICS CONSTANTS
-R_base = 58.19                           # radius of the base -> TO BE UPDATED FROM THE 3D MODEL!!
-R_plane = 84.00                          # radius of the plate -> TO BE UPDATED FROM THE 3D MODEL!!
-L1 = 50.0                                # length of link 1 -> TO BE UPDATED FROM THE 3D MODEL!!
-L2 = 50.0                                # length of link 2 -> TO BE UPDATED FROM THE 3D MODEL!!
+R_base = 28.65                           # radius of the base
+R_plane = 84.00                          # radius of the plate
+L1 = 80.0                                # length of link 1, the upper one (Pi -> Bi)
+L2 = 80.0                                # length of link 2, the lower one (Mi -> Pi)
+H_NOM = 120.0                            # height of the plate center at the nominal pose
 base_c = np.array([0.0, 0.0, 0.0])       # coordinates of the base center
 M1 = np.array([R_base*np.cos(np.pi),     R_base*np.sin(np.pi),     0.0]) # coordinates of motor 1
 M2 = np.array([R_base*np.cos(5*np.pi/3), R_base*np.sin(5*np.pi/3), 0.0]) # coordinates of motor 2
@@ -95,7 +98,7 @@ config = picam2.create_preview_configuration(
 picam2.configure(config)
 picam2.start()
 
-set_angle([45, 45, 45])
+set_angle([Q_HOME + OFFSETS[i] for i in range(3)])
 
 try:
     count = 0       # holds the number of frames
@@ -156,7 +159,7 @@ try:
             try:
                 n = np.array([u[0], u[1], 1.0])
                 n = n / np.linalg.norm(n)
-                h = 100.0
+                h = H_NOM
                 B1 = np.array([
                     -n[2]*R_plane/np.sqrt(n[0]**2 + n[2]**2),
                     0.0,
