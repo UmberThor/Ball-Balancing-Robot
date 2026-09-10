@@ -18,8 +18,8 @@ M3 = [R_b * cos(pi/3); R_b * sin(pi/3); 0];
 
 % HEIGHT AND NORMAL VECTOR
 h = 100;
-% n = [0.25, 0.25, 1];
 n = [0, 0, 1];
+%n = [-0.25, 0.33, 1];
 n = n/norm(n);
 
 % BALL JOINT COORDINATES
