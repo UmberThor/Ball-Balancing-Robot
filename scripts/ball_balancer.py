@@ -8,13 +8,23 @@ import vision
 import control
 import kinematics
 
-# GUI ON/OFF
-# python3 ball_balancer.py to run without image
-# python3 ball_balancer.py --gui to run with image
+# CONTROL MODE AND GUI ON/OFF
+# exactly one control mode must be given: --pid, --lqr or --rl
+# python3 ball_balancer.py --pid to run the PID without image
+# python3 ball_balancer.py --pid --gui to run the PID with image
+# python3 ball_balancer.py --lqr (--gui) to run the LQR
 parser = argparse.ArgumentParser()
 parser.add_argument("--gui", action="store_true", help="show the camera window")
+mode = parser.add_mutually_exclusive_group(required=True)
+mode.add_argument("--pid", action="store_true", help="PID control")
+mode.add_argument("--lqr", action="store_true", help="LQR control")
+mode.add_argument("--rl", action="store_true", help="reinforcement learning control (not implemented yet)")
 args = parser.parse_args()
 gui_on = args.gui
+
+# refuse now, before the camera and the servos are started
+if args.rl:
+    parser.error("RL control is not implemented yet, use --pid or --lqr")
 
 fps_smooth = 30.0           # variable to keep track of the fps
 
@@ -52,7 +62,10 @@ try:
 
             fps_smooth = 0.9 * fps_smooth + 0.1 * (1.0/dt)
 
-            u = control.pid(err, dt)
+            if args.pid:
+                u = control.pid(err, dt)
+            elif args.lqr:
+                u = control.lqr(err, dt)
 
             # INVERSE KINEMATICS, see the matlab
             try:

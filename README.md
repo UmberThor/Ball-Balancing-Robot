@@ -10,7 +10,28 @@ A 3-DOF parallel platform that keeps a ball balanced in the center of a transpar
 
 Different types of controller are tested: a PID controller, an LQR controller and a Reinforcement Learning controller.
 
-The code that runs on the robot is in the `scripts` folder, divided in modules: `ball_balancer.py` holds the main loop, `hardware.py` drives the servos and the camera, `vision.py` finds the ball in the frame, `control.py` computes the control action and `kinematics.py` solves the inverse kinematics. `inverse_kinematics.m` is the Matlab reference of §1 and does not run on the robot.
+The code that runs on the robot is in the `scripts` folder, divided in modules: `ball_balancer.py` holds the main loop, `hardware.py` drives the servos and the camera, `vision.py` finds the ball in the frame, `control.py` computes the control action and `kinematics.py` solves the inverse kinematics. `inverse_kinematics.m` and `linear_quadratic_control.m` are the Matlab references of §1 and §8, and do not run on the robot.
+
+## Running the code
+
+The code runs on the Raspberry Pi of §3 and needs `picamera2`, OpenCV, NumPy and `pigpio`. The `pigpio` daemon must be started before the script.
+
+```bash
+git clone https://github.com/UmberThor/Ball-Balancing-Robot.git
+cd Ball-Balancing-Robot/scripts
+sudo pigpiod
+python3 ball_balancer.py --pid
+```
+
+Exactly one control mode must be selected:
+
+| Flag | Control |
+|---|---|
+| `--pid` | Propotional Integral Derivative Controller, §7 |
+| `--lqr` | Linear Quadratic Regulator Controller, §8 |
+| `--rl` | Reinforcement Learning, §9|
+
+The `--gui` flag is optional and opens a window that shows the ball detection of §5. The script is stopped with Ctrl+C, or with `q` on the window when `--gui` is set.
 
 ---
 
@@ -332,14 +353,14 @@ The horns are mounted with the servos at 90°: each servo is driven to that posi
 
 The ball is found by colour. The detection is in `scripts/vision.py`, works entirely in pixels, and returns the centre and the radius of the ball in the frame, or nothing when the ball is not in view.
 
-The camera delivers frames of 320 by 240 pixels. The duration of the frame is pinned at 25 ms in `scripts/hardware.py`: a frame can never be shorter than the exposure it contains, so fixing its duration also caps the exposure. The automatic exposure is then forced to reach for analogue gain instead of time, which keeps the ball sharp while it moves and the loop running at the rate the sensor can deliver rather than at the rate the light allows.
+The camera delivers frames of 320 by 240 pixels. The duration of the frame is pinned at 25 ms in `scripts/hardware.py`: a frame can never be shorter than the exposure it contains, so fixing its duration also caps the exposure. The automatic exposure is then forced to reach for analogue gain instead of time, which keeps the ball sharp while it moves. The loop itself runs at about 22 Hz, below the 40 Hz of the sensor, limited by the processing of each frame.
 
 Each frame is converted to HSV and thresholded on hue. Pink lies across the origin of the hue circle, so the mask is the union of two ranges, 148 to 180 and 0 to 6, both with saturation and value above 50: a ball of a different colour needs those two ranges changed, and nothing else. The mask is then opened with a 5 by 5 elliptical kernel, which removes the specks of the background, and closed with a 3 by 3 one, which fills the holes inside the ball.
 
 The contours of the mask are extracted and the one of largest area is the candidate. It is accepted as the ball only if it passes two gates: its area must be at least 10% of the area of a circle of radius $R_{ball} = 50$ px, measured on a frame, which discards the blobs too small to be the ball, and it must fill at least 45% of its minimum enclosing circle, which discards the blobs of the right size but of the wrong shape. The centre and the radius of that enclosing circle are the result of the detection.
 
 <p align="center">
-  <img src="docs/placeholder.gif" alt="A frame and the mask of the ball obtained from it" width="640">
+  <img src="docs/vision.gif" alt="A frame and the mask of the ball obtained from it" width="640">
   <br>
   <em>A frame and the mask that the detection extracts from it</em>
 </p>
@@ -366,11 +387,68 @@ The control law is in `scripts/control.py`. Its input is the position error of �
 
 $$\mathbf{u} = K_p \mathbf{e} + K_i \int \mathbf{e}\ dt + K_d \frac{d \mathbf{e}}{dt}$$
 
-with $K_p = 24 \cdot 10^{-5}$, $K_i = 48 \cdot 10^{-5}$ and $K_d = 12 \cdot 10^{-5}$. The components of $\mathbf{u}$ have no dimension: they are the slope that §6 imposes on the plate, so the gains convert pixels into slope. The interval $dt$ is measured on every frame, so the loop does not depend on a fixed frame rate.
+with $K_p = 36 \cdot 10^{-5}$, $K_i = 36 \cdot 10^{-5}$ and $K_d = 20 \cdot 10^{-5}$. The components of $\mathbf{u}$ have no dimension: they are the slope that §6 imposes on the plate, so the gains convert pixels into slope. The interval $dt$ is measured on every frame, so the loop does not depend on a fixed frame rate.
 
 The integral and the previous error are reset when the ball is reacquired after having been lost: whatever the integral wound up to while the ball was off the plate has nothing to do with the new position. There is no other anti windup, and the derivative is computed on the raw error, without filtering.
 
 # 8. LQR Control
+
+The LQR is in `scripts/control.py` and is selected with `--lqr`. As for the PID, the control problem along $x$ and the one along $y$ are treated as two distinct problems with the same model. The gain is computed offline in `linear_quadratic_control.m`.
+
+## 8.1 Model
+
+The ball rolls without slipping on the plate tilted by $\theta$. Along the normal and along the slope, and for the torques about its centre, where only the static friction $f_s$ acts:
+
+$$
+\begin{gathered}
+F_N = F_g \cos\theta \\
+f_s - F_g \sin\theta = m a \\
+I \alpha = R f_s
+\end{gathered}
+$$
+
+The rolling condition $\alpha = -a / R$ eliminates $f_s$:
+
+$$a = -\frac{g \sin\theta}{1 + \frac{I}{m R^2}}$$
+
+A ping pong ball is a hollow sphere, $I = \frac{2}{3} m R^2$, so that, linearized for small tilts:
+
+$$a = -\frac{3}{5} g \sin\theta \approx c \theta, \qquad c = -\frac{3}{5} g$$
+
+The camera measures the position in pixels, so $c$ is converted with the scale of the image, taken from the ball itself: its radius is 50 px in the frame and 0.02 m in reality, which gives $s = 2500$ px/m and $c = -\frac{3}{5} g s = -14715$ px/s² per radian.
+
+The state is the position of the ball, its velocity and the integral of the position, and the input is the tilt:
+
+$$
+\frac{d}{dt} \begin{bmatrix} x \\ \dot x \\ x_I \end{bmatrix} =
+\begin{bmatrix} 0 & 1 & 0 \\ 0 & 0 & 0 \\ 1 & 0 & 0 \end{bmatrix}
+\begin{bmatrix} x \\ \dot x \\ x_I \end{bmatrix} +
+\begin{bmatrix} 0 \\ c \\ 0 \end{bmatrix} \theta
+$$
+
+The pair $(A, B)$ is controllable for any $c \neq 0$.
+
+## 8.2 Gain
+
+The model is discretized with a zero order hold at $T_s = 1/20$ s, close to the period of the loop, which runs at about 22 Hz, and $K$ is the gain of the discrete LQR. The weights follow Bryson's rule, which normalizes each state and the input by the largest value acceptable for it:
+
+$$Q = \mathrm{diag}\left(\frac{1}{x_{max}^2},\ \frac{1}{\dot x_{max}^2},\ \frac{1}{x_{I,max}^2}\right), \qquad R = \frac{1}{\theta_{max}^2}$$
+
+with $x_{max} = 50$ px, $\dot x_{max} = 100$ px/s, $x_{I,max} = 200$ px·s and $\theta_{max} = 1°$. The resulting gain is
+
+$$K = [-3.756 \cdot 10^{-4},\quad -2.744 \cdot 10^{-4},\quad -7.830 \cdot 10^{-5}]$$
+
+negative because $c$ is.
+
+## 8.3 Control law
+
+The LQR gives the tilt $\theta = -K [x,\ \dot x,\ x_I]^T$. For small tilts $\theta \approx -u$ (§6), and the code builds the state from the error $e = -x$ of §5, so the two signs cancel and the law applied is
+
+$$\mathbf{u} = -K [\mathbf{e},\ \dot{\mathbf{e}},\ \mathbf{e}_I]^T$$
+
+The velocity is not measured: it is the finite difference of the error, as in the PID. The integral is the sum of the error at the previous step, which is the forward Euler update of $\dot x_I = x$. With this state the LQR law has the same structure as the PID of §7, and the model assigns it $K_p = 37.6 \cdot 10^{-5}$, $K_d = 27.4 \cdot 10^{-5}$ and $K_i = 7.8 \cdot 10^{-5}$.
+
+## 8.4 Kalman filter
 
 # 9. Reinforcement Learning Control
 

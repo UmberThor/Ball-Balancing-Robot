@@ -28,7 +28,7 @@ def home():
     set_angle([Q_HOME + OFFSETS[i] for i in range(3)])
 
 # CAMERA SETUP
-TARGET_FPS = 40                          # frame rate demanded of the sensor
+TARGET_FPS = 20                          # frame rate demanded of the sensor
 FRAME_US = int(1e6 / TARGET_FPS)         # the frame duration it corresponds to, in us
 
 def camera_info(picam2):

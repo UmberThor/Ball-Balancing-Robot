@@ -3,14 +3,16 @@
 
 import numpy as np
 
-# CONTROL CONSTANTS
-KP = 24
-KI = 48
-KD = 12
-print(f'KP:{KP}\tKI:{KI}\t KD:{KD}')
+# PID CONSTANTS
+KP = 36
+KI = 36
+KD = 20
 KP = KP*0.00001
 KI = KI*0.00001
 KD = KD*0.00001
+
+# LQR CONSTANTS
+K_LQR = np.array([-3.755751e-04, -2.744274e-04, -7.829578e-05])
 
 # CONTROL INITIALIZATION
 err_int = np.zeros(2)       # integral error
@@ -32,4 +34,13 @@ def pid(err, dt):
     err_der = (err - err_prev) / dt
     u = KP * err + KI * err_int + KD * err_der
     err_prev = err
+    return u
+
+
+def lqr(err, dt):
+    global err_int, err_prev
+    err_int = err_int + err_prev * dt
+    err_der = (err - err_prev) / dt
+    err_prev = err
+    u = - (K_LQR[0] * err + K_LQR[1] * err_der + K_LQR[2] * err_int)
     return u
