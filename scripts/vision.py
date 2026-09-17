@@ -33,8 +33,8 @@ def find_ball(cnts):
 
 def detect(frame):
     # IMAGE PROCESSING
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)                                                                    # converts to hsv
-    mask = (cv2.inRange(hsv, (148, 50, 50), (180, 255, 255)) | cv2.inRange(hsv, (0,   50, 50), (6,   255, 255)))    # keeps only pinkish pixels
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)                # converts to hsv
+    mask = cv2.inRange(hsv, (148, 110, 50), (180, 255, 255))    # keeps only pinkish pixels
 
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, k_open)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, k_close)
