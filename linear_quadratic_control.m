@@ -1,3 +1,4 @@
+%% LQR
 g   = 9.81;
 R_BALL_PX = 50;
 s   = R_BALL_PX/0.02;        % [px/m]

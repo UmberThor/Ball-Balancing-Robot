@@ -88,7 +88,7 @@ def plate_angles(pose):
 
 # PHYSICAL PARAMETERS: nominal values and ranges of the domain randomization
 NOMINAL = dict(
-    substeps=23,                         # physics steps per control step, 46 ms: the loop runs at about 22 Hz
+    substeps=25,                         # physics steps per control step, 50 ms: the loop runs at 20 Hz
     latency=0.04,                        # s, from the frame to the command of the servos
     noise_px=1.0,                        # std of the detected ball position
     servo_tau=0.025,                     # s, time constant of the servos
@@ -103,7 +103,7 @@ NOMINAL = dict(
     roll_friction=2e-5,                  # m
 )
 RANDOM = dict(
-    substeps=(20, 27),
+    substeps=(22, 28),
     latency=(0.02, 0.06),
     noise_px=(0.5, 2.0),
     servo_tau=(0.015, 0.04),
@@ -122,12 +122,12 @@ DEFAULT_CAMERA_CONFIG = dict(distance=0.45, azimuth=135.0, elevation=-25.0, look
 
 
 class BallBalancerEnv(MujocoEnv):
-    metadata = {"render_modes": ["human", "rgb_array", "depth_array"], "render_fps": 22}
+    metadata = {"render_modes": ["human", "rgb_array", "depth_array"], "render_fps": 20}
 
-    def __init__(self, randomize=True, max_episode_steps=440, render_mode=None,
+    def __init__(self, randomize=True, max_episode_steps=400, render_mode=None,
                  width=480, height=360, camera_id=None, camera_name=None):
         self.randomize = randomize
-        self.max_episode_steps = max_episode_steps      # 440 steps, about 20 s
+        self.max_episode_steps = max_episode_steps      # 400 steps, 20 s
         observation_space = spaces.Box(-np.inf, np.inf, shape=(2 * N_ERR + 2 * N_ACT,), dtype=np.float32)
         super().__init__(
             os.path.join(HERE, "ball_balancer.xml"),

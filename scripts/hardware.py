@@ -48,15 +48,11 @@ def start_camera(W, H):
     picam2 = Picamera2()        # start the frame capturing
     config = picam2.create_preview_configuration(
         main={"size": (W, H), "format": "RGB888"},
-        # a frame can never be shorter than the exposure it contains, so pinning
-        # the frame duration also caps the exposure: the auto exposure then has
-        # to reach for analogue gain instead of time, and the loop runs at the
-        # rate the sensor can deliver rather than the rate the light allows
         controls={"FrameDurationLimits": (FRAME_US, FRAME_US)}
     )
     picam2.configure(config)
     picam2.start()
-    time.sleep(1.0)             # let the auto exposure settle before reading it back
+    time.sleep(1.0)
     camera_info(picam2)
     return picam2
 

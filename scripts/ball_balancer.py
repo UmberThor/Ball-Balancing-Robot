@@ -7,14 +7,17 @@ import hardware
 import vision
 import control
 import kinematics
+import kalman
 
 # CONTROL MODE AND GUI ON/OFF
 # exactly one control mode must be given: --pid, --lqr or --rl
 # python3 ball_balancer.py --pid to run the PID without image
 # python3 ball_balancer.py --pid --gui to run the PID with image
 # python3 ball_balancer.py --lqr (--gui) to run the LQR
+# python3 ball_balancer.py --lqr --kalman to feed the controller with the error and velocity estimated by kalman.py
 parser = argparse.ArgumentParser()
 parser.add_argument("--gui", action="store_true", help="show the camera window")
+parser.add_argument("--kalman", action="store_true", help="estimate error and velocity with the Kalman filter instead of the finite difference")
 mode = parser.add_mutually_exclusive_group(required=True)
 mode.add_argument("--pid", action="store_true", help="PID control")
 mode.add_argument("--lqr", action="store_true", help="LQR control")
@@ -22,14 +25,11 @@ mode.add_argument("--rl", action="store_true", help="reinforcement learning cont
 args = parser.parse_args()
 gui_on = args.gui
 
-# refuse now, before the camera and the servos are started
-if args.rl:
-    parser.error("RL control is not implemented yet, use --pid or --lqr")
-
-fps_smooth = 30.0           # variable to keep track of the fps
+fps_smooth = float(hardware.TARGET_FPS)    # variable to keep track of the fps
 
 t_prev = time.monotonic()   # instant of actuation
 had_ball = False            # flag to know wether the previous frame had the ball
+u_prev = np.zeros(2)        # slope last applied to the plate, the input of the prediction of kalman.py
 
 center = vision.center
 
@@ -48,25 +48,34 @@ try:
         if ball is not None:
             cx, cy, r = ball
 
+            err = np.array([center[0] - cx, center[1] - cy], dtype=float)
+
             if not had_ball:    # reacquisition, in case the ball is repositioned for example after falling
-                control.reset(np.array([center[0]-cx, center[1]-cy], dtype=float))
+                control.reset(err)
+                kalman.reset(err)
                 t_prev = time.monotonic()
             had_ball = True
 
             # CONTROL ACTION
-            err = np.array([center[0] - cx, center[1] - cy], dtype=float)
-
             now = time.monotonic()
             dt = max(now - t_prev, 1e-3)
             t_prev = now
 
             fps_smooth = 0.9 * fps_smooth + 0.1 * (1.0/dt)
 
-            if args.pid:
-                u = control.pid(err, dt)
-            elif args.lqr:
-                u = control.lqr(err, dt)
+            if args.kalman:
+                err_ctrl, err_der = kalman.update(err, u_prev, dt)
+            else:
+                err_ctrl, err_der = err, None      # the controllers take the finite difference themselves
 
+            if args.pid:
+                u = control.pid(err_ctrl, dt, err_der)
+            elif args.lqr:
+                u = control.lqr(err_ctrl, dt, err_der)
+            elif args.rl:
+                print("UNDER CONSTRUCTION")
+                exit()
+                
             # INVERSE KINEMATICS, see the matlab
             try:
                 q_raw = kinematics.solve(u, kinematics.H_NOM)
@@ -74,6 +83,7 @@ try:
                     q_deg = np.clip(q_raw, hardware.Q_MIN, hardware.Q_MAX)
                     q_cmd = [q_deg[i] + hardware.OFFSETS[i] for i in range(3)]
                     hardware.set_angle(q_cmd)
+                    u_prev = u      # only a slope that reached the servos acts on the ball
                     if count % 5 == 0:
                         print(f"\rfps: {fps_smooth:5.1f} | err: [{err[0]:6.1f} {err[1]:6.1f}] | u: [{u[0]:+.3f} {u[1]:+.3f}] | q: [{q_cmd[0]:5.1f} {q_cmd[1]:5.1f} {q_cmd[2]:5.1f}]", end="", flush=True)
                 else:

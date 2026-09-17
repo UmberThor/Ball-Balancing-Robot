@@ -28,19 +28,23 @@ def reset(err):
     err_prev = err
 
 
-def pid(err, dt):
+# err_der is the velocity of the error estimated by kalman.py. Without it the
+# velocity is the finite difference of the error, as it has always been
+def pid(err, dt, err_der=None):
     global err_int, err_prev
     err_int = err_int + err * dt
-    err_der = (err - err_prev) / dt
+    if err_der is None:
+        err_der = (err - err_prev) / dt
     u = KP * err + KI * err_int + KD * err_der
     err_prev = err
     return u
 
 
-def lqr(err, dt):
+def lqr(err, dt, err_der=None):
     global err_int, err_prev
     err_int = err_int + err_prev * dt
-    err_der = (err - err_prev) / dt
+    if err_der is None:
+        err_der = (err - err_prev) / dt
     err_prev = err
     u = - (K_LQR[0] * err + K_LQR[1] * err_der + K_LQR[2] * err_int)
     return u

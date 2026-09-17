@@ -353,7 +353,7 @@ The horns are mounted with the servos at 90°: each servo is driven to that posi
 
 The ball is found by colour. The detection is in `scripts/vision.py`, works entirely in pixels, and returns the centre and the radius of the ball in the frame, or nothing when the ball is not in view.
 
-The camera delivers frames of 320 by 240 pixels. The duration of the frame is pinned at 25 ms in `scripts/hardware.py`: a frame can never be shorter than the exposure it contains, so fixing its duration also caps the exposure. The automatic exposure is then forced to reach for analogue gain instead of time, which keeps the ball sharp while it moves. The loop itself runs at about 22 Hz, below the 40 Hz of the sensor, limited by the processing of each frame.
+The camera delivers frames of 320 by 240 pixels. The duration of the frame is pinned at 50 ms in `scripts/hardware.py`: a frame can never be shorter than the exposure it contains, so fixing its duration also caps the exposure. The automatic exposure is then forced to reach for analogue gain instead of time, which keeps the ball sharp while it moves. The loop itself runs at the 20 Hz of the sensor: the processing of each frame is shorter than that, so it is the camera that sets the pace.
 
 Each frame is converted to HSV and thresholded on hue. Pink lies across the origin of the hue circle, so the mask is the union of two ranges, 148 to 180 and 0 to 6, both with saturation and value above 50: a ball of a different colour needs those two ranges changed, and nothing else. The mask is then opened with a 5 by 5 elliptical kernel, which removes the specks of the background, and closed with a 3 by 3 one, which fills the holes inside the ball.
 
@@ -430,7 +430,7 @@ The pair $(A, B)$ is controllable for any $c \neq 0$.
 
 ## 8.2 Gain
 
-The model is discretized with a zero order hold at $T_s = 1/20$ s, close to the period of the loop, which runs at about 22 Hz, and $K$ is the gain of the discrete LQR. The weights follow Bryson's rule, which normalizes each state and the input by the largest value acceptable for it:
+The model is discretized with a zero order hold at $T_s = 1/20$ s, the period of the loop, which runs at 20 Hz, and $K$ is the gain of the discrete LQR. The weights follow Bryson's rule, which normalizes each state and the input by the largest value acceptable for it:
 
 $$Q = \mathrm{diag}\left(\frac{1}{x_{max}^2},\ \frac{1}{\dot x_{max}^2},\ \frac{1}{x_{I,max}^2}\right), \qquad R = \frac{1}{\theta_{max}^2}$$
 
