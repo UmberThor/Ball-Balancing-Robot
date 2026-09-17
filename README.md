@@ -3,20 +3,24 @@
 A 3-DOF parallel platform that keeps a ball balanced in the center of a transparent plate. A camera looks at the plate from below and detects the position of the ball, a controller turns the ball position error into a desired plate tilt, and the inverse kinematics turns that tilt into three servo angles.
 
 <p align="center">
-  <img src="docs/real_robot.gif" width="640">
+  <img src="docs/balancing.gif" alt="The robot balancing a ball" width="48%">
+  <img src="docs/catching.gif" alt="The robot catching a ball" width="48%">
   <br>
-  <em>The robot balancing a ball</em>
+  <em>On the left the robot balancing a ball, on the right the robot catching a ball (0.5 speed)</em>
 </p>
 
-Different types of controller are tested: a PID controller, an LQR controller and a Reinforcement Learning controller.
+Different types of controller are tested: a PID controller, an LQR controller and an RL controller.
 
-The code that runs on the robot is in the `scripts` folder, divided in modules: `ball_balancer.py` holds the main loop, `hardware.py` drives the servos and the camera, `vision.py` finds the ball in the frame, `control.py` computes the control action and `kinematics.py` solves the inverse kinematics. `inverse_kinematics.m` and `linear_quadratic_control.m` are the Matlab references of §1 and §8, and do not run on the robot.
+The code that runs on the robot is in the `scripts` folder, divided into modules: `ball_balancer.py` holds the main loop, `hardware.py` drives the servos and the camera, `vision.py` finds the ball in the frame, `control.py` computes the control action, `kalman.py` estimates the error and its velocity and `kinematics.py` solves the inverse kinematics.
+
+`inverse_kinematics.m` and `linear_quadratic_control.m` are the Matlab references of §1 and §8, and do not run on the robot.
 
 ## Running the code
 
-The code runs on the Raspberry Pi of §3 and needs `picamera2`, OpenCV, NumPy and `pigpio`. The `pigpio` daemon must be started before the script.
+The code runs on the Raspberry Pi of §3, with Raspberry Pi OS. The dependencies are installed with `apt`, and the `pigpio` daemon must be started before the script.
 
 ```bash
+sudo apt install git python3-picamera2 python3-opencv python3-numpy pigpio python3-pigpio
 git clone https://github.com/UmberThor/Ball-Balancing-Robot.git
 cd Ball-Balancing-Robot/scripts
 sudo pigpiod
@@ -27,11 +31,11 @@ Exactly one control mode must be selected:
 
 | Flag | Control |
 |---|---|
-| `--pid` | Propotional Integral Derivative Controller, §7 |
+| `--pid` | Proportional Integral Derivative Controller, §7 |
 | `--lqr` | Linear Quadratic Regulator Controller, §8 |
 | `--rl` | Reinforcement Learning, §9|
 
-The `--gui` flag is optional and opens a window that shows the ball detection of §5. The script is stopped with Ctrl+C, or with `q` on the window when `--gui` is set.
+The `--gui` flag is optional and opens a window that shows the ball detection of §5, and requires a display. The `--kalman` flag is optional and feeds the controller with the error and the velocity estimated by the Kalman filter of §6 instead of the measured error and its finite difference. The script is stopped with Ctrl+C, or with `q` on the window when `--gui` is set.
 
 ---
 
@@ -53,7 +57,7 @@ The plate is a rigid disc whose center is constrained to the vertical $z$ axis. 
 
 ## 1.2 Architecture
 
-The actuation mechanism consists of three identical arms, located 120° apart. Each arm $i$ is a two-link RRS chain that connects the base to the plate, so the robot as a whole is a **3-RRS** parallel manipulator: revolute at the shoulder, revolute (pin) at the elbow, spherical at the wrist. The shoulder joint is **active**, driven by the motor; the elbow and wrist joints are **passive**.
+The actuation mechanism consists of three identical arms, located 120° apart. Each arm $i$ is a two-link RRS chain that connects the base to the plate, so the robot as a whole is a **3-RRS** parallel manipulator: revolute at the shoulder, revolute (pin joint) at the elbow, spherical (ball joint) at the wrist. The shoulder joint is **active**, driven by the motor; the elbow and wrist joints are **passive**.
 
 <p align="center">
   <img src="docs/Figure_1.png" width="640">
@@ -64,7 +68,7 @@ The actuation mechanism consists of three identical arms, located 120° apart. E
 
 | Point / length | Meaning |
 |---|---|
-| $\mathbf{M}_i$ | coordinates of the $i$-th motor, fixed on the base circle of radius $R_b$ |
+| $\mathbf{M}_i$ | coordinates of the $i$-th motor on the base circle of radius $R_b$ |
 | $\mathbf{P}_i$ | coordinates of the $i$-th pin joint connecting the two links |
 | $\mathbf{B}_i$ | coordinates of the $i$-th ball joint on the plate circle of radius $R_p$ |
 | $L_1$ | length of the upper link (link 1) that connects $\mathbf{P}_i$ to $\mathbf{B}_i$ |
@@ -139,7 +143,7 @@ x_i = s_i\ \frac{\gamma R_p}{\sqrt{\gamma^2\left(1 + E_i^2\right) + (\alpha + \b
 
 where $s_i \in \lbrace -1, +1 \rbrace$ picks the one of the two rim points that is on the motor's side; the other root is the diametrically opposite point of the rim.
 
-Expanding the box for the three arms gives:
+Expanding for the three arms gives:
 
 **Arm 1**: $E_1 = 0$, $s_1 = -1$:
 
@@ -201,10 +205,7 @@ C_i = \frac{B_{iy} - M_{iy}}{M_{iz} - B_{iz}}
 \end{gathered}
 $$
 
-Geometrically this is the *radical plane* of the two spheres: the plane that contains their intersection circle.
-
-
-Intersecting it with $y = E_i x$ collapses the circle to the two points of a line:
+Geometrically this is the *radical plane* of the two spheres: the plane that contains their intersection circle. Intersecting it with $y = E_i x$ collapses the circle to the two points of a line:
 
 $$y = E_i x, \qquad z = A_i + (B_i + C_i E_i)\ x$$
 
@@ -277,8 +278,6 @@ All the printed parts are in the `3d files` folder:
 | `link_upper.stl` | upper link, from the elbow to the plate | 3 |
 | `plate.stl` | ring that holds the transparent plate | 1 |
 
-The pins of the joints are not printed: in the real robot they are three screws.
-
 
 > **On the ball joints.** They are *modeled* as ball joints but the physical model realizes them as a screw through a clearance hole. That is nominally a pin joint; the extra rotational freedom comes from the clearance, so it is a compliant stand-in for a spherical pair rather than a true ball joint.
 
@@ -290,7 +289,7 @@ The pins of the joints are not printed: in the real robot they are three screws.
 
 The physical dimensions of the mechanism, $R_b$, $R_p$, $L_1$ and $L_2$, are the ones already reported in §1.2: they are measured on the Fusion 360 model, and they are the values used throughout the project.
 
-In the first version of the robot the links were about half as long as the current ones. The plate was then so close to the camera that the ball covered almost the entire field of view, and its position was detected poorly. The links have therefore been made longer, until the stand-off between the camera and the plate was enough for a reliable detection, but not so long to increase excessively the moment arm, and with it the torque the servos need to tilt the plate.
+In the first version of the robot the links were about half as long as the current ones. The plate was then so close to the camera that the ball covered almost the entire field of view, and its position was detected poorly. The links have therefore been made longer, until the distance between the camera and the plate was enough for a reliable detection, but not so long as to increase excessively the moment arm, and with it the torque the servos need to tilt the plate.
 
 # 3. Electronics
 
@@ -298,13 +297,13 @@ The electronics are kept as simple as possible: a Raspberry Pi 4 Model B, three 
 
 Each servo has three wires: signal, 5V and ground. The signal wires go to three GPIO pins of the Raspberry Pi:
 
-| Motor | GPIO (BCM) | Header pin |
-|---|---|---|
-| 1 | 13 | 33 |
-| 2 | 18 | 12 |
-| 3 | 12 | 32 |
+| Motor | GPIO (BCM) |
+|---|---|
+| 1 | 13 |
+| 2 | 18 |
+| 3 | 12 |
 
-The numbers are the BCM numbering used by `pigpio`, not the position of the pin on the header. This is also the order declared in `scripts/hardware.py` (`SERVO_PINS = [13, 18, 12]`), so keeping it makes the code work as it is.
+The numbers are the BCM numbering used by `pigpio`, not the position of the pin on the header. This is also the order declared in `scripts/hardware.py`, so keeping it makes the code work as it is.
 
 The three grounds go to three distinct GND pins. The 5V pins of the Raspberry Pi are only two, so one servo takes one of them, while the other two share the second one through a jumper cable with one female and two male ends, made by hand.
 
@@ -316,7 +315,7 @@ The three grounds go to three distinct GND pins. The 5V pins of the Raspberry Pi
 
 > **On the power supply.** The Raspberry Pi is powered by its own USB-C cable, which outputs 5.1 V at 3 A, and the three servos draw from that same rail. This is not the ideal way to feed three servos: a proper build would power them from a dedicated power supply module, leaving the 5V rail of the Raspberry Pi to the Raspberry Pi alone. Compactness was one of the goals of this project, so the current version accepts the compromise.
 
-The camera is a 5 megapixel CSI module with IR filter, and it is the only component that does not use the GPIO header: it plugs into the CSI port of the Raspberry Pi. The ribbon supplied with it is the narrow type, while the CSI connector of the Raspberry Pi 4 takes the wide one, so it is replaced by a 30 cm wide flex cable.
+The camera is a 5 megapixel CSI module that plugs into the CSI port of the Raspberry Pi.
 
 # 4. 3d print and assembly
 
@@ -324,15 +323,14 @@ The camera is a 5 megapixel CSI module with IR filter, and it is the only compon
 
 The parts are printed in PLA with the default settings of the slicer. The loads on the structure are low, so orientation and infill are not critical. `motor_base.stl` and `raspberry_top.stl` require supports, `raspberry_bottom.stl` prints better with them but is acceptable without, and the other parts do not need them.
 
-The joints are assembled with M2 screws 15 mm long. The hole in the ring is 2 mm and holds the screw, while the hole in the upper link is 3 mm: the radial play that results is what gives the joint the rotational freedom of §2. The axial slide of the link along the screw is limited by the gap between the two walls of the ring.
 
 ## 4.2 Assembly
 
 Besides the printed parts, the robot needs:
 
-- [Raspberry Pi 4 Model B]()
-- [5 megapixel CSI camera module]()
-- [30 cm wide flex cable]() for the camera
+- [Raspberry Pi 4 Model B](https://www.amazon.it/-/en/Raspberry-Pi-W128431608-Model-2GB/dp/B09TTNPB4J)
+- [5 megapixel CSI camera module](https://www.amazon.it/dp/B0DKNBP41T?ref=ppx_yo2ov_dt_b_fed_asin_title)
+- [30 cm wide flex cable](https://www.amazon.it/dp/B075PBTQPG?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1) for the camera
 - 9 male-female jumper cables
 - 3 SG90 servo motors, with their horns and the small screw that fixes each horn to its shaft
 - 3 M2 screws 15 mm long, for the ball joints between the upper links and the ring
@@ -341,7 +339,7 @@ Besides the printed parts, the robot needs:
 - a plexiglass disc of 150 mm of diameter for the plate
 - a ping pong ball, pink in this build: a ball of a different colour requires the detection of §5 to be adjusted
 
-The horns are mounted with the servos at 90°: each servo is driven to that position before its horn is fixed to the shaft, aligned with the body of the servo. The spline of the shaft has about twenty teeth, so the horn can only be fitted every 18° and the alignment is necessarily approximate. What is left of it is corrected in software by the constants `OFFSETS` of `scripts/hardware.py`, `[0, -5, -5]` in this build, which are added in degrees to the angles commanded to the three servos.
+The horns are mounted with the servos at 90°: each servo is driven to that position before its horn is fixed to the shaft, aligned with the body of the servo. The alignment is necessarily approximate: what is left of it is corrected in software by the constants `OFFSETS` of `scripts/hardware.py`, `[0, -5, -5]` in this build, which are added in degrees to the angles commanded to the three servos.
 
 <p align="center">
   <img src="docs/servo_horn.png" alt="Servo horn aligned with the body of the servo" width="300">
@@ -351,73 +349,88 @@ The horns are mounted with the servos at 90°: each servo is driven to that posi
 
 # 5. Ball detection
 
-The ball is found by colour. The detection is in `scripts/vision.py`, works entirely in pixels, and returns the centre and the radius of the ball in the frame, or nothing when the ball is not in view.
+The ball is detected by colour in `scripts/vision.py`, on frames of 320 by 240 pixels. The camera runs at 20 Hz, which sets the rate of the loop.
 
-The camera delivers frames of 320 by 240 pixels. The duration of the frame is pinned at 50 ms in `scripts/hardware.py`: a frame can never be shorter than the exposure it contains, so fixing its duration also caps the exposure. The automatic exposure is then forced to reach for analogue gain instead of time, which keeps the ball sharp while it moves. The loop itself runs at the 20 Hz of the sensor: the processing of each frame is shorter than that, so it is the camera that sets the pace.
-
-Each frame is converted to HSV and thresholded on hue. Pink lies across the origin of the hue circle, so the mask is the union of two ranges, 148 to 180 and 0 to 6, both with saturation and value above 50: a ball of a different colour needs those two ranges changed, and nothing else. The mask is then opened with a 5 by 5 elliptical kernel, which removes the specks of the background, and closed with a 3 by 3 one, which fills the holes inside the ball.
-
-The contours of the mask are extracted and the one of largest area is the candidate. It is accepted as the ball only if it passes two gates: its area must be at least 10% of the area of a circle of radius $R_{ball} = 50$ px, measured on a frame, which discards the blobs too small to be the ball, and it must fill at least 45% of its minimum enclosing circle, which discards the blobs of the right size but of the wrong shape. The centre and the radius of that enclosing circle are the result of the detection.
+Each frame is converted to HSV and thresholded with hue from 148 to 180, saturation of at least 110 and value of at least 50. A ball of a different colour requires a different range. The mask is cleaned with a morphological opening and closing, and its largest contour is accepted as the ball if its area and the fraction of its minimum enclosing circle it fills are large enough. The centre and the radius of that circle are the output of the detection. The position error, input of the controller, is the vector from the ball to the centre of the frame.
 
 <p align="center">
-  <img src="docs/vision.gif" alt="A frame and the mask of the ball obtained from it" width="640">
+  <img src="docs/vision.gif" alt="The masked frame shown by the --gui window" width="640">
   <br>
-  <em>A frame and the mask that the detection extracts from it</em>
+  <em>The window of <code>--gui</code>: the frame masked by the detection, with the enclosing circle of the ball and its centre in green, the vector from the centre of the frame to the ball in blue and the control action, scaled, in yellow</em>
 </p>
 
-The position error is the vector from the ball to the centre of the frame, and it is the input of the control of §7. Running `ball_balancer.py --gui` draws the ball, the error and the control action on the masked frame, which is the quickest way to check that the thresholds are right.
+# 6. Kalman filter
 
-# 6. Actuation
+The PID of §7 and the LQR of §8 need the velocity of the error, which is not measured, and its finite difference amplifies the noise of the detection. With `--kalman` the error and its velocity are instead estimated by the Kalman filter in `scripts/kalman.py`.
 
-The control action $\mathbf{u}$ of §7 is a vector of the horizontal plane, and it is imposed on the plate as the direction of steepest descent of its surface: the plate is tilted so that a ball resting on it rolls, and accelerates, along $\mathbf{u}$. A surface of gradient $\nabla z = (a,\ b)$ has upward normal $[-a,\ -b,\ 1]$, so imposing $\mathbf{u} = -\nabla z$ means giving the plate the normal
+Each axis is treated separately, with the same model: the state is the error $e$ and its velocity $\dot e$, and the input is the slope $u$ of the plate along that axis. A hollow ball rolling on a small slope accelerates along $u$ by $\frac{3}{5} g u$ (§8.1), and the error points from the ball to the centre of the frame, so in pixels, with the scale $s = 2500$ px/m given by the ball radius of 50 px and 0.02 m:
 
-$$\mathbf{n} = \frac{[u_x,\ u_y,\ 1]}{\lVert [u_x,\ u_y,\ 1] \rVert}$$
+$$\ddot e = c u, \qquad c = -\frac{3}{5} g s = -14715\ \mathrm{px/s^2}$$
 
-which is the pose that §1 turns into the three motor angles, at the fixed height $h = 120$.
+With $u$ held constant between two frames, over the measured interval $dt$:
 
-The three servos are driven by `pigpio`, which generates the pulses with DMA instead of with the Python interpreter, so their timing does not depend on what the loop is doing. Its daemon must be running, `sudo pigpiod`, otherwise `scripts/hardware.py` stops at startup.
+$$
+\begin{bmatrix} e \\ \dot e \end{bmatrix}_{k+1} =
+\underbrace{\begin{bmatrix} 1 & dt \\ 0 & 1 \end{bmatrix}}_{F}
+\begin{bmatrix} e \\ \dot e \end{bmatrix}_k +
+\underbrace{\begin{bmatrix} c\ dt^2/2 \\ c\ dt \end{bmatrix}}_{G} u_k +
+\mathbf{w}_k
+$$
 
-Each servo receives a pulse every 20 ms and its angle is set by the width of that pulse: 500 µs correspond to 0° and 2500 µs to 180°, linear in between. `angle_to_pulse` applies the conversion and `set_angle` writes the three widths on the pins of §3.
+where $u_k$ is the slope applied at the previous frame and $\mathbf{w}_k$ is the acceleration the model does not explain, such as friction, servo lag and pushes, taken as random with standard deviation $\sigma_a = 100$ px/s²:
 
-The angles come from the inverse kinematics of §1: they are clipped to $[45°,\ 75°]$ and shifted by the offsets of §4.2 before being written. At startup `home()` drives the three servos to the nominal pose, and at shut down the pulses are stopped, which leaves the servos free instead of holding their last position.
+$$Q = \sigma_a^2 \begin{bmatrix} dt^4/4 & dt^3/2 \\ dt^3/2 & dt^2 \end{bmatrix}$$
 
-# 7. PID Control
-
-The control law is in `scripts/control.py`. Its input is the position error of §5, the vector from the ball to the centre of the frame in pixels, and its output is the tilt of the plate. The two components of the error are treated as two independent axes, with the same gains on both:
-
-$$\mathbf{u} = K_p \mathbf{e} + K_i \int \mathbf{e}\ dt + K_d \frac{d \mathbf{e}}{dt}$$
-
-with $K_p = 36 \cdot 10^{-5}$, $K_i = 36 \cdot 10^{-5}$ and $K_d = 20 \cdot 10^{-5}$. The components of $\mathbf{u}$ have no dimension: they are the slope that §6 imposes on the plate, so the gains convert pixels into slope. The interval $dt$ is measured on every frame, so the loop does not depend on a fixed frame rate.
-
-The integral and the previous error are reset when the ball is reacquired after having been lost: whatever the integral wound up to while the ball was off the plate has nothing to do with the new position. There is no other anti windup, and the derivative is computed on the raw error, without filtering.
-
-# 8. LQR Control
-
-The LQR is in `scripts/control.py` and is selected with `--lqr`. As for the PID, the control problem along $x$ and the one along $y$ are treated as two distinct problems with the same model. The gain is computed offline in `linear_quadratic_control.m`.
-
-## 8.1 Model
-
-The ball rolls without slipping on the plate tilted by $\theta$. Along the normal and along the slope, and for the torques about its centre, where only the static friction $f_s$ acts:
+Only the error is measured, so $H = [1,\ 0]$, with variance $R = 1$ px². Each frame predicts the state with the model and corrects it with the measured error $z$:
 
 $$
 \begin{gathered}
-F_N = F_g \cos\theta \\
-f_s - F_g \sin\theta = m a \\
+\hat{\mathbf{x}}^- = F \hat{\mathbf{x}} + G u, \qquad P^- = F P F^T + Q \\
+y = z - H \hat{\mathbf{x}}^-, \qquad S = H P^- H^T + R, \qquad K = P^- H^T / S \\
+\hat{\mathbf{x}} = \hat{\mathbf{x}}^- + K y, \qquad P = (I - K H) P^-
+\end{gathered}
+$$
+
+where $\hat{\mathbf{x}} = [\hat e,\ \hat{\dot e}]^T$ is the estimate, $P$ its covariance and $K$ the gain. $P$ does not depend on the measurements, so a single one serves both axes.
+
+# 7. PID Control
+
+The PID is in `scripts/control.py` and is selected with `--pid`. Its input is either the error $\mathbf{e}$ measured in §5, whose derivative is then computed as a finite difference, or, with `--kalman`, the error and its derivative estimated in §6.
+
+Each axis is controlled separately, with the same gains:
+
+$$\mathbf{u} = K_p \mathbf{e} + K_i \int \mathbf{e}\ dt + K_d \frac{d \mathbf{e}}{dt}$$
+
+with $K_p = 36 \cdot 10^{-5}$, $K_i = 36 \cdot 10^{-5}$ and $K_d = 20 \cdot 10^{-5}$. The output $\mathbf{u}$ is the dimensionless slope of the plate (§10), so the gains convert pixels into slope. The interval $dt$ is measured on every frame. When the ball is reacquired after being lost, the integral and the previous error are reset.
+
+# 8. LQR Control
+
+The LQR is in `scripts/control.py` and is selected with `--lqr`. As for the PID, its input is either the error $\mathbf{e}$ measured in §5, whose derivative is then computed as a finite difference, or, with `--kalman`, the error and its derivative estimated in §6. Each axis is controlled separately, with the same model. The gain is computed offline in `linear_quadratic_control.m`.
+
+## 8.1 Model
+
+The ball, of mass $m$, radius $R$ and moment of inertia $I$, rolls without slipping on the plate tilted by $\theta$.
+
+<p align="center">
+  <img src="docs/ball_model.png" alt="Free body diagram of the ball on the tilted plate" width="360">
+  <br>
+  <em>Free body diagram of the ball on the plate tilted by &theta;, with the <i>x</i> axis along the slope and &alpha; positive counterclockwise</em>
+</p>
+
+Along $x$ and about the centre of the ball, gravity and the static friction $f_s$ give:
+
+$$
+\begin{gathered}
+f_s - m g \sin\theta = m a \\
 I \alpha = R f_s
 \end{gathered}
 $$
 
-The rolling condition $\alpha = -a / R$ eliminates $f_s$:
+The rolling condition $\alpha = -a / R$ eliminates $f_s$. A ping pong ball is a hollow sphere, $I = \frac{2}{3} m R^2$, so, linearized for small tilts:
 
-$$a = -\frac{g \sin\theta}{1 + \frac{I}{m R^2}}$$
+$$a = -\frac{g \sin\theta}{1 + \frac{I}{m R^2}} = -\frac{3}{5} g \sin\theta \approx c \theta$$
 
-A ping pong ball is a hollow sphere, $I = \frac{2}{3} m R^2$, so that, linearized for small tilts:
-
-$$a = -\frac{3}{5} g \sin\theta \approx c \theta, \qquad c = -\frac{3}{5} g$$
-
-The camera measures the position in pixels, so $c$ is converted with the scale of the image, taken from the ball itself: its radius is 50 px in the frame and 0.02 m in reality, which gives $s = 2500$ px/m and $c = -\frac{3}{5} g s = -14715$ px/s² per radian.
-
-The state is the position of the ball, its velocity and the integral of the position, and the input is the tilt:
+In pixels, with the scale $s = 2500$ px/m given by the ball radius of 50 px and 0.02 m, $c = -\frac{3}{5} g s = -14715$ px/s² per radian. The state is the position of the ball, its velocity and the integral of the position:
 
 $$
 \frac{d}{dt} \begin{bmatrix} x \\ \dot x \\ x_I \end{bmatrix} =
@@ -426,11 +439,11 @@ $$
 \begin{bmatrix} 0 \\ c \\ 0 \end{bmatrix} \theta
 $$
 
-The pair $(A, B)$ is controllable for any $c \neq 0$.
+which is controllable for any $c \neq 0$.
 
 ## 8.2 Gain
 
-The model is discretized with a zero order hold at $T_s = 1/20$ s, the period of the loop, which runs at 20 Hz, and $K$ is the gain of the discrete LQR. The weights follow Bryson's rule, which normalizes each state and the input by the largest value acceptable for it:
+The model is discretized with a zero order hold at $T_s = 1/20$ s, the period of the loop, and $K$ is the gain of the discrete LQR. The weights follow Bryson's rule:
 
 $$Q = \mathrm{diag}\left(\frac{1}{x_{max}^2},\ \frac{1}{\dot x_{max}^2},\ \frac{1}{x_{I,max}^2}\right), \qquad R = \frac{1}{\theta_{max}^2}$$
 
@@ -438,23 +451,47 @@ with $x_{max} = 50$ px, $\dot x_{max} = 100$ px/s, $x_{I,max} = 200$ px·s and $
 
 $$K = [-3.756 \cdot 10^{-4},\quad -2.744 \cdot 10^{-4},\quad -7.830 \cdot 10^{-5}]$$
 
-negative because $c$ is.
-
 ## 8.3 Control law
 
-The LQR gives the tilt $\theta = -K [x,\ \dot x,\ x_I]^T$. For small tilts $\theta \approx -u$ (§6), and the code builds the state from the error $e = -x$ of §5, so the two signs cancel and the law applied is
+The LQR gives $\theta = -K [x,\ \dot x,\ x_I]^T$. Since $\theta \approx -u$ (§10) and $e = -x$, the law applied is
 
 $$\mathbf{u} = -K [\mathbf{e},\ \dot{\mathbf{e}},\ \mathbf{e}_I]^T$$
 
-The velocity is not measured: it is the finite difference of the error, as in the PID. The integral is the sum of the error at the previous step, which is the forward Euler update of $\dot x_I = x$. With this state the LQR law has the same structure as the PID of §7, and the model assigns it $K_p = 37.6 \cdot 10^{-5}$, $K_d = 27.4 \cdot 10^{-5}$ and $K_i = 7.8 \cdot 10^{-5}$.
-
-## 8.4 Kalman filter
-
 # 9. Reinforcement Learning Control
 
-# 10. Future developments
+TODO
 
-# 11. Credits
+# 10. Actuation
+
+The control action $\mathbf{u}$ is a vector of the horizontal plane, and it is imposed on the plate as the direction of steepest descent of its surface: the plate is tilted so that a ball resting on it rolls, and accelerates, along $\mathbf{u}$. A surface of gradient $\nabla z = (a,\ b)$ has upward normal $[-a,\ -b,\ 1]$, so imposing $\mathbf{u} = -\nabla z$ means giving the plate the normal
+
+$$\mathbf{n} = \frac{[u_x,\ u_y,\ 1]}{\lVert [u_x,\ u_y,\ 1] \rVert}$$
+
+which is the pose that §1 turns into the three motor angles, at the fixed height $h = 120$.
+
+The three servos are driven by `pigpio`, which times the pulses with DMA, independently of the Python loop. Each servo receives a pulse every 20 ms, and the width of the pulse sets its angle, from 500 µs at 0° to 2500 µs at 180°. The angles of §1 are clipped to $[45°,\ 75°]$ and shifted by the offsets of §4.2 before being written, and a pose that §1 finds unreachable is skipped, so the servos hold the previous command. At startup the servos are driven to the nominal pose, and at shut down the pulses are stopped, which leaves the servos free.
+
+# 11. Future developments
+
+**Mechanics and electronics**
+
+- A dedicated power supply for the servos, instead of the 5V rail of the Raspberry Pi.
+- True spherical joints in place of the screws through clearance holes, whose play is not in the model.
+- Metal gear or digital servos in place of the SG90, which have plastic gears, backlash and a coarse resolution.
+
+**Control**
+
+- A model of the lag introduced by the servos and by the processing of the frame, identified from logged data, in the Kalman filter of §6 and in the LQR of §8.
+- A calibration of the camera for the scale from pixels to metres, now taken from the radius of the ball.
+
+**New tasks**
+
+- Tracking of a moving target, such as a circle or a figure eight, which requires the more precise actuation above.
+- Use of the height $h$, the third degree of freedom of the platform, fixed at 120 in §10: to soften the landing of a ball, as in the catch at the top of this page, or to bounce it.
+
+TODO after RL
+
+# 12. Credits
 
 This project is a reproduction of the ball balancing robot built by [Koshiro Robot Creator](https://www.youtube.com/watch?v=KnYSuQEBGHc). I decided to build my own version mainly to experiment and to learn, but also because I did not have the motors used in the original one: every part has therefore been modeled from scratch, taking inspiration from his design. The only exception is `camera_cover.stl`, which is a modified version of the one published in his [GitHub repository](https://github.com/KoshiroRobot/Ball-Balancing-Robot).
 

@@ -4,8 +4,8 @@ clc;
 
 % HEIGHT AND NORMAL VECTOR
 h = 120;
-%n = [0, 0, 1];
-n = [-0.25, 0.33, 1];
+n = [0, 0, 1];
+%n = [-0.25, 0.33, 1];
 n = n/norm(n);
 
 % CONSTANTS
