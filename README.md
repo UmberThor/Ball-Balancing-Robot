@@ -369,17 +369,19 @@ $$\ddot e = c u, \qquad c = -\frac{3}{5} g s = -14715\ \mathrm{px/s^2}$$
 
 With $u$ held constant between two frames, over the measured interval $dt$:
 
-$$
+```math
 \begin{bmatrix} e \\ \dot e \end{bmatrix}_{k+1} =
 \underbrace{\begin{bmatrix} 1 & dt \\ 0 & 1 \end{bmatrix}}_{F}
 \begin{bmatrix} e \\ \dot e \end{bmatrix}_k +
 \underbrace{\begin{bmatrix} c\ dt^2/2 \\ c\ dt \end{bmatrix}}_{G} u_k +
 \mathbf{w}_k
-$$
+```
 
 where $u_k$ is the slope applied at the previous frame and $\mathbf{w}_k$ is the acceleration the model does not explain, such as friction, servo lag and pushes, taken as random with standard deviation $\sigma_a = 100$ px/s²:
 
-$$Q = \sigma_a^2 \begin{bmatrix} dt^4/4 & dt^3/2 \\ dt^3/2 & dt^2 \end{bmatrix}$$
+```math
+Q = \sigma_a^2 \begin{bmatrix} dt^4/4 & dt^3/2 \\ dt^3/2 & dt^2 \end{bmatrix}
+```
 
 Only the error is measured, so $H = [1,\ 0]$, with variance $R = 1$ px². Each frame predicts the state with the model and corrects it with the measured error $z$:
 
@@ -432,12 +434,12 @@ $$a = -\frac{g \sin\theta}{1 + \frac{I}{m R^2}} = -\frac{3}{5} g \sin\theta \app
 
 In pixels, with the scale $s = 2500$ px/m given by the ball radius of 50 px and 0.02 m, $c = -\frac{3}{5} g s = -14715$ px/s² per radian. The state is the position of the ball, its velocity and the integral of the position:
 
-$$
+```math
 \frac{d}{dt} \begin{bmatrix} x \\ \dot x \\ x_I \end{bmatrix} =
 \begin{bmatrix} 0 & 1 & 0 \\ 0 & 0 & 0 \\ 1 & 0 & 0 \end{bmatrix}
 \begin{bmatrix} x \\ \dot x \\ x_I \end{bmatrix} +
 \begin{bmatrix} 0 \\ c \\ 0 \end{bmatrix} \theta
-$$
+```
 
 which is controllable for any $c \neq 0$.
 
