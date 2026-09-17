@@ -13,3 +13,15 @@ inverse_kinematics.md
 
 # printed only as a placeholder for a screw
 3d files/little_perno.stl
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Jupyter
+.jupyter/
+.virtual_documents/
+.ipynb_checkpoints/
+
+# claude
+CLAUDE.md

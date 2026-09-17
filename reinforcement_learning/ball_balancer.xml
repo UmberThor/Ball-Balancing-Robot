@@ -1,0 +1,94 @@
+<!--
+  Ball balancing robot, reduced to what the policy acts on: the plate and the ball.
+  The three arms are not simulated: the plate is driven kinematically by the
+  environment through the inverse and forward kinematics of scripts/kinematics.py,
+  so the joints below are set from Python at every physics step.
+  Units: meters, kilograms, seconds.
+-->
+<mujoco model="ball_balancer">
+  <compiler angle="radian" autolimits="true" meshdir="../3d files"/>
+
+  <option timestep="0.002" integrator="implicitfast"/>
+
+  <visual>
+    <global offwidth="640" offheight="480"/>
+    <quality shadowsize="4096"/>
+    <headlight ambient="0.35 0.35 0.35" diffuse="0.5 0.5 0.5"/>
+  </visual>
+
+  <asset>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.85 0.88 0.92" rgb2="0.35 0.4 0.48" width="512" height="512"/>
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.42 0.43 0.45" rgb2="0.36 0.37 0.39" width="512" height="512"/>
+    <material name="floor" texture="grid" texrepeat="12 12" reflectance="0.05"/>
+    <material name="printed" rgba="0.92 0.92 0.9 1" specular="0.1"/>
+    <!-- printed parts, in millimeters -->
+    <mesh name="raspberry_bottom" file="raspberry_bottom.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="raspberry_top" file="raspberry_top.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="motor_base" file="motor_base.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="camera_cover" file="camera_cover.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="plate" file="plate.stl" scale="0.001 0.001 0.001"/>
+    <material name="plexiglass" rgba="0.75 0.9 1 0.25" specular="0.8" shininess="0.9"/>
+    <material name="ball" rgba="1 0.45 0.7 1" specular="0.3"/>
+  </asset>
+
+  <default>
+    <default class="visual">
+      <geom type="mesh" material="printed" contype="0" conaffinity="0" group="1" density="0"/>
+    </default>
+  </default>
+
+  <worldbody>
+    <light pos="0.3 -0.3 0.8" dir="-0.3 0.3 -0.8" diffuse="0.6 0.6 0.6" castshadow="true"/>
+    <geom name="floor" type="plane" size="0.5 0.5 0.01" pos="0 0 -0.0684" material="floor" contype="0" conaffinity="0"/>
+
+    <!-- static body of the robot, visual only. The meshes keep the coordinates they were exported with,
+         so each frame moves one part: centred on the z axis, and stacked with the motor base around
+         the height of the motor axes (z = 0 of the kinematics). Their placement is approximate -->
+    <frame pos="-0.04745 -0.03295 -0.0684">
+      <geom name="raspberry_bottom" class="visual" mesh="raspberry_bottom"/>
+    </frame>
+    <frame pos="-0.00251 -0.0034 -0.0308">
+      <geom name="raspberry_top" class="visual" mesh="raspberry_top"/>
+    </frame>
+    <frame pos="-0.00251 -0.0034 -0.0518">
+      <geom name="motor_base" class="visual" mesh="motor_base"/>
+    </frame>
+    <frame pos="-0.00251 -0.0034 -0.0688">
+      <geom name="camera_cover" class="visual" mesh="camera_cover"/>
+    </frame>
+
+    <!-- the camera looks up at the plate from inside the cover, as the real one: image x along +x, image y along +y.
+         the field of view gives the 2500 px/m of the ball at the nominal height -->
+    <camera name="below" pos="0 0 0.024" xyaxes="1 0 0 0 -1 0" fovy="45"/>
+    <camera name="side" mode="targetbody" target="look_at" pos="0.26 -0.26 0.22"/>
+    <body name="look_at" pos="0 0 0.05"/>
+
+    <!-- plate: height along z, then tilt about y, then about x (R = Ry Rx) -->
+    <body name="plate_lift">
+      <joint name="plate_z" type="slide" axis="0 0 1"/>
+      <inertial pos="0 0 0" mass="0.001" diaginertia="1e-6 1e-6 1e-6"/>
+      <body name="plate_pitch">
+        <joint name="plate_ry" type="hinge" axis="0 1 0"/>
+        <inertial pos="0 0 0" mass="0.001" diaginertia="1e-6 1e-6 1e-6"/>
+        <body name="plate">
+          <joint name="plate_rx" type="hinge" axis="1 0 0"/>
+          <!-- the top surface of the disc is at the joint origin -->
+          <geom name="plate" type="cylinder" size="0.075 0.0015" pos="0 0 -0.0015" mass="0.03"
+                material="plexiglass" friction="0.4 0.001 0.00002" solref="0.005 1"/>
+          <!-- ring that holds the disc (inner radius 70 mm, outer 78 mm, 4 mm thick): the disc rests on top of it -->
+          <frame pos="-0.001 0 -0.12974">
+            <geom name="ring" class="visual" mesh="plate"/>
+          </frame>
+        </body>
+      </body>
+    </body>
+
+    <!-- ping pong ball: 40 mm, 2.7 g, hollow shell, so the inertia is 2/3 m R^2 and not the solid 2/5.
+         the contact is stiffer than the default (solref 0.02): softer, it takes 7% off the rolling acceleration -->
+    <body name="ball" pos="0 0 0.14">
+      <freejoint name="ball"/>
+      <inertial pos="0 0 0" mass="0.0027" diaginertia="7.2e-7 7.2e-7 7.2e-7"/>
+      <geom name="ball" type="sphere" size="0.02" material="ball" condim="6" friction="0.4 0.001 0.00002" solref="0.005 1"/>
+    </body>
+  </worldbody>
+</mujoco>

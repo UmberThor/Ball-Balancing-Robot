@@ -1,0 +1,24 @@
+# Environment of the simulation and of the reinforcement learning training.
+#   conda env create -f environment.yml
+#   conda activate ball-balancer-rl
+#   python -m ipykernel install --user --name ball-balancer-rl --display-name "Python (ball-balancer-rl)"
+# Everything but Python comes from pip, so that PyTorch is installed only once.
+name: ball-balancer-rl
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - numpy
+      - mujoco<3.11             # 3.11 dropped the scene argument of mjv_moveCamera, which the Gymnasium viewer still passes
+      - gymnasium[classic-control]   # pygame, to render the classic control examples as CartPole.
+                                     # no opencv-python: it bundles its own SDL2, which clashes with the one of pygame
+      - torch
+      - stable-baselines3
+      - tensorboard
+      - tqdm
+      - rich
+      - imageio
+      - matplotlib
+      - ipykernel

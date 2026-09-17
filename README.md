@@ -336,9 +336,9 @@ Besides the printed parts, the robot needs:
 - 9 male-female jumper cables
 - 3 SG90 servo motors, with their horns and the small screw that fixes each horn to its shaft
 - 3 M2 screws 15 mm long, for the ball joints between the upper links and the ring
-- 6 M2 screws 4 mm long, two per horn, to fix the lower links to the servo horns
+- 9 M2 screws 4 mm long, six to fix the lower links to the servo horns, two per horn, and three to fix the plate to the ring
 - 9 M2 screws 10 mm long, six between the camera cover and the motor base and three between the motor base and the top half of the Raspberry Pi case
-- a transparent acrylic disc of 150 mm of diameter for the plate, at the moment a thin sheet of transparent plastic taped to the ring
+- a plexiglass disc of 150 mm of diameter for the plate
 - a ping pong ball, pink in this build: a ball of a different colour requires the detection of §5 to be adjusted
 
 The horns are mounted with the servos at 90°: each servo is driven to that position before its horn is fixed to the shaft, aligned with the body of the servo. The spline of the shaft has about twenty teeth, so the horn can only be fitted every 18° and the alignment is necessarily approximate. What is left of it is corrected in software by the constants `OFFSETS` of `scripts/hardware.py`, `[0, -5, -5]` in this build, which are added in degrees to the angles commanded to the three servos.
