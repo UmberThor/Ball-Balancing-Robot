@@ -28,6 +28,9 @@ U_MAX = 0.2                              # slope at action 1, the largest reacha
 # ACTUATION, as in scripts/hardware.py
 Q_MIN, Q_MAX = 45.0, 75.0
 
+# PLATE
+PLATE_TOP = 0.004                        # m, the surface of the disc above h: 2 mm of half ring plus the 2 mm disc
+
 # CAMERA, as in scripts/vision.py
 W, H = 320, 240                          # size of the camera frame
 R_BALL = 0.02                            # ball radius in meters
@@ -67,6 +70,19 @@ def forward_kinematics(q, pose0=POSE_NOM):
     # motor angles in degrees -> pose (u_x, u_y, h) of the plate.
     # quasi Newton on the inverse kinematics, with the Jacobian of the nominal pose:
     # a warm start from the previous pose converges in two or three iterations
+    #
+    # TODO: the forward kinematics of the 3-RRS has no simple closed form (the elimination
+    # leads to a polynomial of degree up to 16), but this solver can be improved:
+    # - it fails silently: if FK_ITERS is reached or kinematics.solve returns None, the last
+    #   pose is returned as if converged. Return a convergence flag and warn or raise;
+    #   add a test that solve(FK(q)) == q over the whole [Q_MIN, Q_MAX]^3 box.
+    # - the Jacobian is fixed at the nominal pose (chord method), up to 25% off near the
+    #   limits of the servos: convergence slows there and is not guaranteed.
+    # - better: solve directly in the variables of the mechanism. With q known, P_i is known
+    #   and B_i lies on a circle of radius L1 around P_i in the plane of arm i; the unknowns
+    #   are the three angles on those circles, the equations the three distances
+    #   |B_i - B_j| = R_p sqrt(3). Full Newton with the analytic Jacobian, independent of
+    #   kinematics.solve. A lookup table on q is the fastest alternative if speed matters.
     pose = np.array(pose0, dtype=float)
     for _ in range(FK_ITERS):
         q_pose = kinematics.solve(pose[:2], pose[2])
@@ -238,7 +254,7 @@ class BallBalancerEnv(MujocoEnv):
         x, y = r * np.cos(phi), r * np.sin(phi)
         n = np.array([self._pose[0], self._pose[1], 1.0])
         n = n / np.linalg.norm(n)
-        z = self._pose[2] / 1000.0 - (n[0] * x + n[1] * y) / n[2]
+        z = self._pose[2] / 1000.0 + PLATE_TOP - (n[0] * x + n[1] * y) / n[2]
         v = self.np_random.uniform(-0.05, 0.05, size=2)
         i, j = self._ball_qpos, self._ball_qvel
         self.data.qpos[i:i + 3] = np.array([x, y, z]) + (R_BALL + 1e-4) * n
