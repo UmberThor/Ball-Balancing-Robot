@@ -1,20 +1,19 @@
 # The state estimator: measured pixel error of the ball in, filtered error and its velocity out.
-# Pure numpy, so this module can be run off the robot.
 
 import numpy as np
 
 # MODEL CONSTANTS, the same of linear_quadratic_control.m
 G_ACC = 9.81                            # m/s^2
 PX_PER_M = 50.0 / 0.02                  # the ball radius is 50 px in the frame and 0.02 m in reality
-C = -(3/5) * G_ACC * PX_PER_M           # px/s^2 per unit of slope, hollow shell
+C = -(3/5) * G_ACC * PX_PER_M           # px/s^2 per unit of slope, from the moment of inertia of a hollow shell
 
 # KALMAN CONSTANTS
 SIGMA_A = 100.0                         # px/s^2, std of the acceleration the model does not explain (friction, servo lag, pushes)
 R_MEAS = 1.0                            # px^2, variance of the measured error
 P0_POS = R_MEAS                         # px^2, at reacquisition the position is as good as the measurement
-P0_VEL = 200.0**2                       # (px/s)^2, at reacquisition the velocity is unknown
+P0_VEL = 100.0**2                       # (px/s)^2, at reacquisition the velocity is unknown
 
-H = np.array([[1.0, 0.0]])              # only the error is measured, not its velocity
+H = np.array([[1.0, 0.0]])              # only the error is actually measured, not its velocity
 
 # KALMAN INITIALIZATION
 # x_hat[i] = [e, e_dot] along axis i. The two axes have the same model and the same noise,
@@ -31,7 +30,7 @@ def reset(err):
 
 
 def update(err, u, dt):
-    # err is the measured error, u the slope commanded at the previous frame
+    # err is the measured error, u the slope commanded at the previous frame (even if it might be different from the actual slope due to clipping...)
     global x_hat, P
     F = np.array([[1.0, dt],
                   [0.0, 1.0]])

@@ -1,5 +1,4 @@
-# The control law: pixel error of the ball in, plate tilt out.
-# LQR and reinforcement learning go here too, next to the PID.
+# The control law: pixel error of the ball and its derivative in, plate tilt out.
 
 import numpy as np
 
@@ -18,18 +17,18 @@ K_LQR = np.array([-3.755751e-04, -2.744274e-04, -7.829578e-05])
 err_int = np.zeros(2)       # integral error
 err_prev = np.zeros(2)      # previous error
 
-
 def reset(err):
-    # reacquisition, in case the ball is repositioned for example after falling.
-    # the integral is dropped too: whatever it wound up to while the ball was
-    # off the plate has nothing to do with the new position
+    # reacquisition.
+    # - the previous error is reinitialized at the current error
+    # - the integral error is set to 0: whatever it wound up to while the ball was off the plate has nothing to do with the new position
     global err_int, err_prev
     err_int = np.zeros(2)
     err_prev = err
 
 
-# err_der is the velocity of the error estimated by kalman.py. Without it the
-# velocity is the finite difference of the error, as it has always been
+# for both pid and lqr, err_der is the velocity of the error estimated by kalman.py.
+# without it the velocity is the finite difference of the error, as it has always been
+
 def pid(err, dt, err_der=None):
     global err_int, err_prev
     err_int = err_int + err * dt
@@ -38,7 +37,6 @@ def pid(err, dt, err_der=None):
     u = KP * err + KI * err_int + KD * err_der
     err_prev = err
     return u
-
 
 def lqr(err, dt, err_der=None):
     global err_int, err_prev

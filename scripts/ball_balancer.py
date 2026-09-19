@@ -1,3 +1,5 @@
+# Main loop
+
 import cv2
 import numpy as np
 import time
@@ -11,17 +13,15 @@ import kalman
 
 # CONTROL MODE AND GUI ON/OFF
 # exactly one control mode must be given: --pid, --lqr or --rl
-# python3 ball_balancer.py --pid to run the PID without image
-# python3 ball_balancer.py --pid --gui to run the PID with image
-# python3 ball_balancer.py --lqr (--gui) to run the LQR
-# python3 ball_balancer.py --lqr --kalman to feed the controller with the error and velocity estimated by kalman.py
+# --gui displays the image of what the robot sees
+# --kalman feeds the controller with the error and velocity estimated by the kalman filter instead of the raw measurements from the camera
 parser = argparse.ArgumentParser()
 parser.add_argument("--gui", action="store_true", help="show the camera window")
 parser.add_argument("--kalman", action="store_true", help="estimate error and velocity with the Kalman filter instead of the finite difference")
 mode = parser.add_mutually_exclusive_group(required=True)
 mode.add_argument("--pid", action="store_true", help="PID control")
 mode.add_argument("--lqr", action="store_true", help="LQR control")
-mode.add_argument("--rl", action="store_true", help="reinforcement learning control (not implemented yet)")
+mode.add_argument("--rl", action="store_true", help="RL control")
 args = parser.parse_args()
 gui_on = args.gui
 
@@ -29,7 +29,7 @@ fps_smooth = float(hardware.TARGET_FPS)    # variable to keep track of the fps
 
 t_prev = time.monotonic()   # instant of actuation
 had_ball = False            # flag to know wether the previous frame had the ball
-u_prev = np.zeros(2)        # slope last applied to the plate, the input of the prediction of kalman.py
+u_prev = np.zeros(2)        # slope last applied to the plate
 
 center = vision.center
 
@@ -46,28 +46,34 @@ try:
         ball, mask = vision.detect(frame)
 
         if ball is not None:
-            cx, cy, r = ball
 
+            # ERROR
+            cx, cy, r = ball
             err = np.array([center[0] - cx, center[1] - cy], dtype=float)
 
-            if not had_ball:    # reacquisition, in case the ball is repositioned for example after falling
+            # REACQUISITION in case the ball is repositioned for example after falling
+            reacquired = not had_ball
+            if reacquired:     
                 control.reset(err)
                 kalman.reset(err)
                 t_prev = time.monotonic()
             had_ball = True
 
-            # CONTROL ACTION
+            # UPDATE OF TIME AND FRAME RATE
             now = time.monotonic()
             dt = max(now - t_prev, 1e-3)
             t_prev = now
 
-            fps_smooth = 0.9 * fps_smooth + 0.1 * (1.0/dt)
+            if not reacquired:      # on reacquisition dt is not the interval between two frames
+                fps_smooth = 0.9 * fps_smooth + 0.1 * (1.0/dt)
 
+            # ERROR AND ERROR DERIVATIVE ESTIMATION
             if args.kalman:
                 err_ctrl, err_der = kalman.update(err, u_prev, dt)
             else:
                 err_ctrl, err_der = err, None      # the controllers take the finite difference themselves
 
+            # CONTROL ACTION
             if args.pid:
                 u = control.pid(err_ctrl, dt, err_der)
             elif args.lqr:
@@ -76,7 +82,7 @@ try:
                 print("UNDER CONSTRUCTION")
                 exit()
                 
-            # INVERSE KINEMATICS, see the matlab
+            # INVERSE KINEMATICS
             try:
                 q_raw = kinematics.solve(u, kinematics.H_NOM)
                 if q_raw is not None:
@@ -93,8 +99,7 @@ try:
         else:
             had_ball = False
 
-        # show frame if requested. all the drawing lives in here, so that
-        # nothing is drawn when there is no window to draw it in
+        # DISPLAY FRAME
         if gui_on:
             frame[mask == 0] = [0, 0, 0]
 
@@ -103,8 +108,10 @@ try:
                 cv2.circle(frame, (int(cx), int(cy)), int(r), (0, 255, 0), 3)
                 cv2.circle(frame, (int(cx), int(cy)), 5, (0, 255, 0), 3)
 
-                # display error and scaled version of control
+                # display error
                 cv2.arrowedLine(frame, center, (int(cx), int(cy)), (255, 0, 0), 3, tipLength=0.15)
+
+                # display control (scaled version)
                 s = 500
                 tip = (int(center[0] + u[0]*s), int(center[1] + u[1]*s))
                 cv2.arrowedLine(frame, center, tip, (0, 255, 255), 3, tipLength=0.15)
@@ -114,7 +121,9 @@ try:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
+except KeyboardInterrupt:       # ctrl+c is the normal way to stop the robot, not an error
+    pass
 finally:
-    print('Shut down')
+    print('\nShut down')        # on a new line, after the status line that print keeps rewriting with \r
     hardware.shut_down(picam2)
     cv2.destroyAllWindows()
