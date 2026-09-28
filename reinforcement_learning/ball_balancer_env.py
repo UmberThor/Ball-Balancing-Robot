@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "scripts"))
 import kinematics  # noqa: E402
 
 # ACTION
-U_MAX = 0.2                              # slope at action 1, the largest reachable in every direction with q in [Q_MIN, Q_MAX]
+U_MAX = 0.14                             # the largest for which no action of the square is clipped, see action_limits.ipynb
 
 # ACTUATION, as in scripts/hardware.py
 Q_MIN, Q_MAX = 45.0, 75.0
@@ -39,7 +39,7 @@ PX_PER_M = 50.0 / R_BALL                 # the ball radius is 50 px in the frame
 # OBSERVATION
 N_ERR = 3                                # last errors in the observation, the velocity is not measured
 N_ACT = 2                                # last actions in the observation, they carry what the delay hides
-ERR_SCALE = W / 2                        # pixels -> observation
+ERR_SCALE = W / 2                        # scale the physical observartion [pixels] to the observation fed to the network (so it is in [-1, +1])
 
 # REWARD
 W_ACT = 0.05                             # weight of the action magnitude
@@ -47,20 +47,21 @@ W_DACT = 0.1                             # weight of the action change, the serv
 
 # FORWARD KINEMATICS
 FK_ITERS = 10
-FK_TOL = 1e-3                            # deg
-POSE_NOM = np.array([0.0, 0.0, kinematics.H_NOM])    # (u_x, u_y, h), h in mm
+FK_TOL = 1e-3                            # [deg]
+POSE_NOM = np.array([0.0, 0.0, kinematics.H_NOM])    # (u_x, u_y, h), h [mm]
+
+
+def _ik(pose):
+    # the inverse kinematics on a pose (u_x, u_y, h): motor angles in degrees, None if unreachable
+    return kinematics.solve(pose[:2], pose[2])
 
 
 def _jacobian(pose, eps=(1e-4, 1e-4, 1e-2)):
     # d q / d (u_x, u_y, h) by central differences, q in degrees
-    cols = []
-    for i in range(3):
-        d = np.zeros(3)
-        d[i] = eps[i]
-        qp = kinematics.solve((pose + d)[:2], (pose + d)[2])
-        qm = kinematics.solve((pose - d)[:2], (pose - d)[2])
-        cols.append((qp - qm) / (2 * eps[i]))
-    return np.column_stack(cols)
+    columns = []
+    for step, e in zip(np.diag(eps), eps):
+        columns.append((_ik(pose + step) - _ik(pose - step)) / (2 * e))
+    return np.column_stack(columns)
 
 
 G_NOM = np.linalg.inv(_jacobian(POSE_NOM))  # d pose / d q at the nominal pose
@@ -85,7 +86,7 @@ def forward_kinematics(q, pose0=POSE_NOM):
     #   kinematics.solve. A lookup table on q is the fastest alternative if speed matters.
     pose = np.array(pose0, dtype=float)
     for _ in range(FK_ITERS):
-        q_pose = kinematics.solve(pose[:2], pose[2])
+        q_pose = _ik(pose)
         if q_pose is None:
             break
         dq = q - q_pose

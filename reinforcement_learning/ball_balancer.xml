@@ -95,7 +95,7 @@ Units: meters, kilograms, seconds.
 
     <!-- ping pong ball: 40 mm, 2.7 g, hollow shell, so the inertia is 2/3 m R^2 and not the solid 2/5.
          the contact is stiffer than the default (solref 0.02): softer, it takes 7% off the rolling acceleration -->
-    <body name="ball" pos="0 0 0.14">
+    <body name="ball" pos="0 0 0.144">
       <freejoint name="ball"/>
       <inertial pos="0 0 0" mass="0.0027" diaginertia="7.2e-7 7.2e-7 7.2e-7"/>
       <geom name="ball" type="sphere" size="0.02" material="ball" condim="6" friction="0.4 0.001 0.00002" solref="0.005 1"/>
