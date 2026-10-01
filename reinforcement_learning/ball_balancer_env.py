@@ -30,6 +30,7 @@ U_MAX = 0.14                             # the largest for which no action of th
 Q_MIN, Q_MAX = 45.0, 75.0
 SERVO_SPEED = 500.0                      # [deg/s] the SG90 does 60 deg in 0.1 s without load
 
+
 # LOOP
 SUBSTEPS = 25                            # physics steps (2 ms) per control step (50 ms), the loop runs at 20 Hz
 
@@ -51,8 +52,8 @@ ERR_SCALE = W / 2                        # px ([-W/2, +W/2]) -> observation for 
 
 
 # REWARD
-W_DIST = 1.25                               # weight of the error
-W_ACT = 0.05                             # weight of the action magnitude
+W_DIST = 1                               # weight of the error
+W_ACT = 0.1                             # weight of the action magnitude
 W_DACT = 5                               # weight of the action change, the servos do not like chattering
 
 
@@ -110,18 +111,16 @@ J_nom_inv = jacobian_inv(POSE_NOM)
 
 
 # PHYSICAL PARAMETERS: the ones the transfer to the robot depends on, drawn at every reset.
-# play and deadband are what makes the ball oscillate around the centre instead of settling on it
+# the deadband is what makes the ball oscillate around the centre instead of settling on it
 NOMINAL = dict(
-    play=0.68,                           # [deg] clearance of the ball joints, 1 mm at R_p = 84 mm
-    deadband=0.6,                        # [deg] the servo ignores smaller changes, 5 to 10 us of pulse
+    deadband=2.0,                        # [deg] dead band of the servo and backlash of its gears
     latency=0.06,                        # [s] from the frame to the command of the servos -> LOW CONFIDENCE
     servo_tau=0.025,                     # [s] time constant of the servos -> LOW CONFIDENCE
-    noise_px=1.0,                        # [px] std of the detected position -> LOW CONFIDENCE
+    noise_px=2.0,                        # [px] std of the detected position -> LOW CONFIDENCE
     px_per_m=PX_PER_M,                   # the scale of the frame, R_BALL_PX is measured roughly
 )
 RANDOM = dict(
-    play=(0.4, 1.0),
-    deadband=(0.3, 1.0),
+    deadband=(1.5, 2.5),
     latency=(0.04, 0.10),
     servo_tau=(0.015, 0.05),
     noise_px=(0.5, 2.0),
@@ -183,14 +182,11 @@ class BallBalancerEnv(MujocoEnv):
         self._pose_target = forward_kinematics(self._q_target, self._pose_target)
 
     def _servo_step(self):
-        # first order lag with a rate limit, per servo, then the play of the joints: the arm drags
-        # the plate only once it has taken up the clearance. Close to the target the pose is linear
-        # in q, so the exact forward kinematics is solved once per control step
+        # first order lag with a rate limit, per servo. Close to the target the pose is linear in q,
+        # so the exact forward kinematics is solved once per control step
         max_step = SERVO_SPEED * self.model.opt.timestep
         self._q = self._q + np.clip((self._q_target - self._q) * self._alpha, -max_step, max_step)
-        slack = self._q - self._q_play
-        self._q_play += slack - np.clip(slack, -self.params["play"], self.params["play"])
-        self._set_plate(self._pose_target + J_nom_inv @ (self._q_play - self._q_target))
+        self._set_plate(self._pose_target + J_nom_inv @ (self._q - self._q_target))
 
     def _set_plate(self, pose, velocity=True):
         rx, ry = plate_angles(pose)
@@ -231,7 +227,6 @@ class BallBalancerEnv(MujocoEnv):
         # servos at the command of the level plate
         self._q_target = np.clip(kinematics.solve([0.0, 0.0], kinematics.H_NOM), Q_MIN, Q_MAX)
         self._q = self._q_target.copy()
-        self._q_play = self._q_target.copy()
         self._pose_target = forward_kinematics(self._q_target)
         self._set_plate(self._pose_target, velocity=False)
 
