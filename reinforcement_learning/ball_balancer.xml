@@ -83,7 +83,7 @@ Units: meters, kilograms, seconds.
                2 mm disc rests 2 mm above the joint origin and its top surface, where the ball rolls, 4 mm above.
                mass: plexiglass, 1.18 g/cm^3 -->
           <geom name="plate" type="cylinder" size="0.075 0.001" pos="0 0 0.003" mass="0.042"
-                material="plexiglass" friction="0.4 0.001 0.00002" solref="0.005 1"/>
+                material="plexiglass" friction="0.4 0.001 0.0001" solref="0.005 1"/>
           <!-- ring that holds the disc (inner radius 70 mm, outer 78 mm, 4 mm thick): the disc rests on top
                of it and the ball joints are at its middle, so the ring is centred on the joint origin -->
           <frame pos="-0.001 0 -0.12474">
@@ -98,7 +98,7 @@ Units: meters, kilograms, seconds.
     <body name="ball" pos="0 0 0.144">
       <freejoint name="ball"/>
       <inertial pos="0 0 0" mass="0.0027" diaginertia="7.2e-7 7.2e-7 7.2e-7"/>
-      <geom name="ball" type="sphere" size="0.02" material="ball" condim="6" friction="0.4 0.001 0.00002" solref="0.005 1"/>
+      <geom name="ball" type="sphere" size="0.02" material="ball" condim="6" friction="0.4 0.001 0.0001" solref="0.005 1"/>
     </body>
   </worldbody>
 </mujoco>

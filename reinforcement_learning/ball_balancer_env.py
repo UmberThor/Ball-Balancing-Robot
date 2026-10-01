@@ -9,6 +9,7 @@
 
 import os
 import sys
+import time
 from collections import deque
 
 import mujoco
@@ -44,14 +45,15 @@ PX_PER_M = 50.0 / R_BALL                 # camerta ball radius [px]
 
 
 # OBSERVATION
-N_ERR = 3                                # last errors, the velocity is not measured
-N_ACT = 2                                # last actions, they carry what the delay hides
+N_ERR = 6                                # last errors, the velocity is not measured
+N_ACT = 3                                # last actions, they carry what the delay hides
 ERR_SCALE = W / 2                        # px ([-W/2, +W/2]) -> observation for the networj ([-1, +1]), a ball at the border is about 1
 
 
 # REWARD
+W_DIST = 1.25                               # weight of the error
 W_ACT = 0.05                             # weight of the action magnitude
-W_DACT = 0.1                             # weight of the action change, the servos do not like chattering
+W_DACT = 5                               # weight of the action change, the servos do not like chattering
 
 
 # FORWARD KINEMATICS
@@ -107,16 +109,21 @@ J_nom = jacobian(POSE_NOM)
 J_nom_inv = jacobian_inv(POSE_NOM) 
 
 
-# PHYSICAL PARAMETERS: the four the transfer to the robot depends on, drawn at every reset
+# PHYSICAL PARAMETERS: the ones the transfer to the robot depends on, drawn at every reset.
+# play and deadband are what makes the ball oscillate around the centre instead of settling on it
 NOMINAL = dict(
-    latency=0.04,                        # [s] from the frame to the command of the servos -> LOW CONFIDENCE
+    play=0.68,                           # [deg] clearance of the ball joints, 1 mm at R_p = 84 mm
+    deadband=0.6,                        # [deg] the servo ignores smaller changes, 5 to 10 us of pulse
+    latency=0.06,                        # [s] from the frame to the command of the servos -> LOW CONFIDENCE
     servo_tau=0.025,                     # [s] time constant of the servos -> LOW CONFIDENCE
     noise_px=1.0,                        # [px] std of the detected position -> LOW CONFIDENCE
     px_per_m=PX_PER_M,                   # the scale of the frame, R_BALL_PX is measured roughly
 )
 RANDOM = dict(
-    latency=(0.02, 0.06),
-    servo_tau=(0.015, 0.04),
+    play=(0.4, 1.0),
+    deadband=(0.3, 1.0),
+    latency=(0.04, 0.10),
+    servo_tau=(0.015, 0.05),
     noise_px=(0.5, 2.0),
     px_per_m=(0.9 * PX_PER_M, 1.1 * PX_PER_M),
 )
@@ -130,7 +137,7 @@ DEFAULT_CAMERA_CONFIG = dict(distance=0.45, azimuth=135.0, elevation=-25.0, look
 class BallBalancerEnv(MujocoEnv):
     metadata = {"render_modes": ["human", "rgb_array", "depth_array"], "render_fps": 20}
 
-    def __init__(self, randomize=True, max_episode_steps=400, render_mode=None, width=480, height=360, camera_id=None, camera_name=None):
+    def __init__(self, randomize=True, max_episode_steps=400, render_mode=None, width=960, height=720, camera_id=None, camera_name=None):
         self.randomize = randomize
         self.max_episode_steps = max_episode_steps      # 400 steps, 20 s
         free_camera = camera_id is None and camera_name is None
@@ -170,15 +177,20 @@ class BallBalancerEnv(MujocoEnv):
         q = kinematics.solve(action * U_MAX, kinematics.H_NOM)
         if q is None:       # unreachable: as on the robot, the servos keep the previous command
             return
-        self._q_target = np.clip(q, Q_MIN, Q_MAX)
+        q = np.clip(q, Q_MIN, Q_MAX)
+        moved = np.abs(q - self._q_target) >= self.params["deadband"]
+        self._q_target = np.where(moved, q, self._q_target)
         self._pose_target = forward_kinematics(self._q_target, self._pose_target)
 
     def _servo_step(self):
-        # first order lag with a rate limit, per servo. Close to the target the pose is linear
+        # first order lag with a rate limit, per servo, then the play of the joints: the arm drags
+        # the plate only once it has taken up the clearance. Close to the target the pose is linear
         # in q, so the exact forward kinematics is solved once per control step
         max_step = SERVO_SPEED * self.model.opt.timestep
         self._q = self._q + np.clip((self._q_target - self._q) * self._alpha, -max_step, max_step)
-        self._set_plate(self._pose_target + J_nom_inv @ (self._q - self._q_target))
+        slack = self._q - self._q_play
+        self._q_play += slack - np.clip(slack, -self.params["play"], self.params["play"])
+        self._set_plate(self._pose_target + J_nom_inv @ (self._q_play - self._q_target))
 
     def _set_plate(self, pose, velocity=True):
         rx, ry = plate_angles(pose)
@@ -219,6 +231,7 @@ class BallBalancerEnv(MujocoEnv):
         # servos at the command of the level plate
         self._q_target = np.clip(kinematics.solve([0.0, 0.0], kinematics.H_NOM), Q_MIN, Q_MAX)
         self._q = self._q_target.copy()
+        self._q_play = self._q_target.copy()
         self._pose_target = forward_kinematics(self._q_target)
         self._set_plate(self._pose_target, velocity=False)
 
@@ -241,21 +254,36 @@ class BallBalancerEnv(MujocoEnv):
         self._err_hist = np.tile(self._measure(), (N_ERR, 1))    # as control.reset on reacquisition
         self._act_hist = np.zeros((N_ACT, 2))
         self._steps = 0
+        self._wall = time.perf_counter()
         return self._get_obs()
+
+    def _render_real_time(self):
+        # the viewer of gymnasium paces itself on the physics step while render is called once per
+        # control step, 25 of them: without this the episode plays about 25 times faster than reality
+        self.render()
+        self.mujoco_renderer.viewer._render_every_frame = True
+        late = time.perf_counter() - self._wall
+        if late < self.dt:
+            time.sleep(self.dt - late)
+        self._wall = time.perf_counter()
 
     def _get_reset_info(self):
         return {"err": self._err_hist[0].copy(), "dt": self.dt, "params": self.params}
 
     def step(self, action):
+
+        # ACTION
         action = np.clip(np.asarray(action, dtype=float), -1.0, 1.0)
         self._command(action)
 
+        # TIME ADVANCE
         for _ in range(SUBSTEPS):
             self._servo_step()
             mujoco.mj_step(self.model, self.data)
             self._px_buffer.append(self._ball_px())
         self._steps += 1
 
+        # HISTORY ROLL
         px = self._px_buffer[-1]
         action_prev = self._act_hist[0].copy()
         self._err_hist = np.roll(self._err_hist, 1, axis=0)
@@ -263,15 +291,16 @@ class BallBalancerEnv(MujocoEnv):
         self._act_hist = np.roll(self._act_hist, 1, axis=0)
         self._act_hist[0] = action
 
+        # REWARD
         distance = np.linalg.norm(px) / (H / 2)
         chatter = np.sum((action - action_prev)**2)
-        reward = 1.0 - distance - W_ACT * np.sum(action**2) - W_DACT * chatter
+        reward = 1.0 - W_DIST * distance - W_ACT * np.sum(action**2) - W_DACT * chatter
 
+        # EPISODE END
         terminated = not (np.all(np.isfinite(self.data.qpos)) and self._in_view(px))
         truncated = self._steps >= self.max_episode_steps
-        info = {"err": self._err_hist[0].copy(), "ball_px": px.copy(), "dt": self.dt,
-                "q": self._q.copy(), "pose": self._pose.copy()}
+        info = {"err": self._err_hist[0].copy(), "ball_px": px.copy(), "dt": self.dt, "q": self._q.copy(), "pose": self._pose.copy()}
 
         if self.render_mode == "human":
-            self.render()
+            self._render_real_time()
         return self._get_obs(), float(reward), terminated, truncated, info
