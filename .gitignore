@@ -10,6 +10,8 @@
 # notes superseded by the README
 inverse kinematics notes.pdf
 inverse_kinematics.md
+reinforcement_learning/notes_action_scale.txt
+reinforcement_learning/notes_calibration.txt
 
 # printed only as a placeholder for a screw
 3d files/little_perno.stl
@@ -25,6 +27,10 @@ __pycache__/
 
 # claude
 CLAUDE.md
+.claude
 
-# notes for self
-reinforcement_learning/notes_action_scale.txt
+# only the correct policy
+reinforcement_learning/policy.npz
+reinforcement_learning/policy_v1_as10.npz
+reinforcement_learning/policy_v2_as20.npz
+reinforcement_learning/sac_ball.zip

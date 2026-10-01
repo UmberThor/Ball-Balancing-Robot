@@ -12,10 +12,6 @@ KD = KD*0.00001
 
 # LQR CONSTANTS
 K_LQR = np.array([-3.755751e-04, -2.744274e-04, -7.829578e-05])
-e_k1 = [0, 0]
-e_k2 = [0, 0]
-a_k1 = [0, 0]
-a_k2 = [0, 0]
 
 # RL CONSTANTS AND POLICY
 ERR_SCALE = 160
@@ -25,19 +21,19 @@ W = np.load("policy.npz")
 # CONTROL INITIALIZATION
 err_int = np.zeros(2)       # integral error
 err_prev = np.zeros(2)      # previous error
+e_hist = np.zeros((6, 2))
+a_hist = np.zeros((3, 2))
 
 def reset(err):
     # reacquisition.
     # - the previous error is reinitialized at the current error
     # - the integral error is set to 0: whatever it wound up to while the ball was off the plate has nothing to do with the new position
-    # - the rl state is set to 0
-    global err_int, err_prev, e_k1, e_k2, a_k1, a_k2
+    # - the rl error history is reinitialized at the current error, the action history is set to 0
+    global err_int, err_prev, e_hist, a_hist
     err_int = np.zeros(2)
     err_prev = err
-    e_k1 = err / ERR_SCALE
-    e_k2 = err / ERR_SCALE
-    a_k1 = [0, 0]
-    a_k2 = [0, 0]
+    e_hist = np.tile(err / ERR_SCALE, (6,1))
+    a_hist = np.zeros((3, 2))
 
 
 # for both pid and lqr, err_der is the velocity of the error estimated by kalman.py.
@@ -62,17 +58,15 @@ def lqr(err, dt, err_der=None):
     return u
 
 def rl(e_k):
-    global e_k1, e_k2, a_k1, a_k2
-    e_k = e_k / ERR_SCALE
+    global e_hist, a_hist
+    e_hist = np.roll(e_hist, 1, axis=0)
+    e_hist[0] = e_k / ERR_SCALE
+    obs = np.concatenate([e_hist.ravel(), a_hist.ravel()])
 
-    obs = np.array([e_k[0], e_k[1], e_k1[0], e_k1[1], e_k2[0], e_k2[1], a_k1[0], a_k1[1], a_k2[0], a_k2[1]])
     h = np.maximum(obs @ W["0.weight"].T + W["0.bias"], 0)
     h = np.maximum(h @ W["2.weight"].T + W["2.bias"], 0)
     a_k = np.tanh(h @ W["mu.weight"].T + W["mu.bias"])
 
-    e_k2 = e_k1.copy()
-    e_k1 = e_k.copy()
-    a_k2 = a_k1.copy()
-    a_k1 = a_k.copy()
-
+    a_hist = np.roll(a_hist, 1, axis=0)
+    a_hist[0] = a_k
     return a_k * U_MAX

@@ -461,7 +461,39 @@ $$\mathbf{u} = -K [\mathbf{e},\ \dot{\mathbf{e}},\ \mathbf{e}_I]^T$$
 
 # 9. Reinforcement Learning Control
 
-TODO
+The neural network trained with RL is in `scripts/control.py` and is selected with `--lqe`. It is trained in a simulation of the robot, and only the trained network runs on the Raspberry Pi. Everything about the training is in the `reinforcement_learning` folder.
+
+## 9.1 Simulation
+
+The robot is simulated in MuJoCo, in `ball_balancer.xml`, and wrapped in a Gymnasium environment, `ball_balancer_env.py`. Only the plate and the ball are simulated: the arms are replaced by the kinematics of §1, which is the same `kinematics.py` that runs on the robot, so the plate is driven through its three joints at the pose the motor angles give it. The physics advances by 25 steps of 2 ms for each control step, which gives the 20 Hz of the loop of §5.
+
+What the policy sees and what it commands are the quantities of the robot. The action is the slope of the plate, $\mathbf{u} = U_{max} \mathbf{a}$ with $\mathbf{a} \in [-1, 1]^2$ and $U_{max} = 0.14$, the largest value for which no action of the square leaves the travel $[45°,\ 75°]$ of §10, computed in `action_limits.ipynb`. The action then goes through the same chain as the output of the PID: inverse kinematics, clipping, servos. The observation is the pixel error of §5, measured on a delayed and noisy frame.
+
+Between the command and the plate the simulation reproduces what the servos add: a first order lag with a rate limit, and a dead band, below which the servo ignores a command, that also stands for the backlash of its gears. The dead band is what makes the ball oscillate around the centre instead of settling on it. It, the latency of the loop, the time constant of the servos, the noise of the detection and the scale of the camera are drawn at every reset, so that the policy is trained on a family of robots rather than on one:
+
+| Parameter | Nominal | Range |
+|---|---|---|
+| dead band of the servos | 2.0° | 1.5° to 2.5° |
+| latency of the loop | 0.06 s | 0.04 s to 0.10 s |
+| time constant of the servos | 0.025 s | 0.015 s to 0.05 s |
+| noise of the detection | 2 px | 0.5 px to 2 px |
+| scale of the camera | 2500 px/m | ±10% |
+
+## 9.2 Policy
+
+The velocity of the ball is not measured, so the observation carries a history: the last 6 errors, divided by half the width of the frame, and the last 3 actions, 18 numbers in all. The actions are part of the observation because the delay hides their effect: the frame the policy sees is older than the slope the plate already has.
+
+The reward keeps the ball at the centre without asking the servos for more than they can do:
+
+$$r = 1 - \frac{\lVert \mathbf{p} \rVert}{120\ \mathrm{px}} - 0.1 \lVert \mathbf{a} \rVert^2 - 5 \lVert \mathbf{a} - \mathbf{a}_{prev} \rVert^2$$
+
+where $\mathbf{p}$ is the position of the ball in the frame. The last term penalizes the change of the action, because a chattering command wears the servos without moving the ball. An episode ends when the ball leaves the frame, or after 400 steps, 20 s.
+
+The policy is trained with SAC, from `stable-baselines3`, in `reinforcement_learning.ipynb`, where the PID and the LQR of `scripts/control.py` are also run in the simulation as a reference. The network is the default of the library: two hidden layers of 256 units with ReLU, and a tanh on the output.
+
+## 9.3 On the robot
+
+Only the actor is deployed. Its weights are exported to `scripts/policy.npz`, and `control.rl` evaluates the network in NumPy, two layers and a tanh, so the Raspberry Pi does not need PyTorch. The function keeps the history of errors and actions that the observation needs, and it is reset with the rest of the control when the ball is reacquired.
 
 # 10. Actuation
 
@@ -480,6 +512,7 @@ The three servos are driven by `pigpio`, which times the pulses with DMA, indepe
 - A dedicated power supply for the servos, instead of the 5V rail of the Raspberry Pi.
 - True spherical joints in place of the screws through clearance holes, whose play is not in the model.
 - Metal gear or digital servos in place of the SG90, which have plastic gears, backlash and a coarse resolution.
+- A motor that has a shaft in both directions in order to guarantee better support to the plate.
 
 **Control**
 
