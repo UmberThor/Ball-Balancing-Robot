@@ -79,8 +79,7 @@ try:
             elif args.lqr:
                 u = control.lqr(err_ctrl, dt, err_der)
             elif args.rl:
-                print("UNDER CONSTRUCTION")
-                exit()
+                u = control.rl(err_ctrl)
                 
             # INVERSE KINEMATICS
             try:
