@@ -114,9 +114,9 @@ J_nom_inv = jacobian_inv(POSE_NOM)
 # the deadband is what makes the ball oscillate around the centre instead of settling on it
 NOMINAL = dict(
     deadband=2.0,                        # [deg] dead band of the servo and backlash of its gears
-    latency=0.06,                        # [s] from the frame to the command of the servos -> LOW CONFIDENCE
-    servo_tau=0.025,                     # [s] time constant of the servos -> LOW CONFIDENCE
-    noise_px=2.0,                        # [px] std of the detected position -> LOW CONFIDENCE
+    latency=0.06,                        # [s] from the frame to the command of the servos (rough estimate)
+    servo_tau=0.025,                     # [s] time constant of the servos (rough estimate)
+    noise_px=2.0,                        # [px] std of the detected position (rough estimate)
     px_per_m=PX_PER_M,                   # the scale of the frame, R_BALL_PX is measured roughly
 )
 RANDOM = dict(

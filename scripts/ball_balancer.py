@@ -15,9 +15,11 @@ import kalman
 # exactly one control mode must be given: --pid, --lqr or --rl
 # --gui displays the image of what the robot sees
 # --kalman feeds the controller with the error and velocity estimated by the kalman filter instead of the raw measurements from the camera
+# --log saves time, error and control action of every frame to a csv, read by metrics.py
 parser = argparse.ArgumentParser()
 parser.add_argument("--gui", action="store_true", help="show the camera window")
 parser.add_argument("--kalman", action="store_true", help="estimate error and velocity with the Kalman filter instead of the finite difference")
+parser.add_argument("--log", action="store_true", help="save time, error and control action of every frame to a csv")
 mode = parser.add_mutually_exclusive_group(required=True)
 mode.add_argument("--pid", action="store_true", help="PID control")
 mode.add_argument("--lqr", action="store_true", help="LQR control")
@@ -30,6 +32,7 @@ fps_smooth = float(hardware.TARGET_FPS)    # variable to keep track of the fps
 t_prev = time.monotonic()   # instant of actuation
 had_ball = False            # flag to know wether the previous frame had the ball
 u_prev = np.zeros(2)        # slope last applied to the plate
+log = []                    # rows of the csv, one per frame with the ball
 
 center = vision.center
 
@@ -80,7 +83,10 @@ try:
                 u = control.lqr(err_ctrl, dt, err_der)
             elif args.rl:
                 u = control.rl(err_ctrl)
-                
+
+            if args.log:    # the raw error, so that runs with --kalman are judged on what the camera sees
+                log.append([now, err[0], err[1], u[0], u[1]])
+
             # INVERSE KINEMATICS
             try:
                 q_raw = kinematics.solve(u, kinematics.H_NOM)
@@ -126,3 +132,11 @@ finally:
     print('\nShut down')        # on a new line, after the status line that print keeps rewriting with \r
     hardware.shut_down(picam2)
     cv2.destroyAllWindows()
+    if args.log:
+        if args.pid:
+            name = time.strftime("log_pid_%Y%m%d_%H%M%S.csv")
+        elif args.lqr:
+            name = time.strftime("log_lqr_%Y%m%d_%H%M%S.csv")
+        elif args.rl:
+            name = time.strftime("log_rl_%Y%m%d_%H%M%S.csv")
+        np.savetxt(name, log, delimiter=",", header="t,ex,ey,ux,uy", comments="")
