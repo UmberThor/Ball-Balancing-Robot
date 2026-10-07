@@ -98,7 +98,7 @@ The robot is modeled in Fusion 360.
   <em>The assembly moving in Fusion 360</em>
 </p>
 
-The robot has a fixed base and a moving plate, a printed ring that holds a transparent plexiglass disc. Three identical arms, located 120° apart, connect the base to the plate. Each arm is a two-link RRS chain, so the robot as a whole is a **3-RRS** parallel manipulator: revolute at the shoulder, revolute at the elbow, spherical at the ball joint. The shoulder joint is **active**, driven by a servo; the elbow and the ball joint are **passive**. Each arm is carried by the servo horn alone, so it hangs on one side of the servo.
+The robot has a fixed base and a moving plate, a printed ring that holds a transparent plexiglass disc. Three identical arms, located 120° apart, connect the base to the plate. Each arm is a two-link RRU chain, so the robot as a whole is a **3-RRU** parallel manipulator: revolute at the shoulder, revolute at the elbow, universal at the ball joint. The shoulder joint is **active**, driven by a servo; the elbow and the ball joint are **passive**. Each arm is carried by the servo horn alone, so it hangs on one side of the servo.
 
 The robot axes have the origin at the center of the base, at the height of the servo shafts, with $z$ vertical and upward, and $x$ horizontal, from the shoulder of arm 1 through the center of the base. Measured from $x$ towards $y$, arm 1 is at 180°, arm 2 at 300° and arm 3 at 60°.
 
